@@ -1,0 +1,28 @@
+# Local dictation config. The speech service and the menu-bar app both read this file.
+# Edit replacements while the service is running; they apply on the next utterance.
+# Endpoints, models, and the hotkey apply on restart.
+
+[stt]
+base_url = "http://127.0.0.1:8090"
+model = "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+language = "en"
+
+[llm]
+base_url = "http://127.0.0.1:8091/v1"
+model = "qwen2.5-1.5b-instruct"
+# Empty for the dedicated Qwen2.5 server, which is started with reasoning off.
+# Set "none" if this URL is pointed at Splash instead.
+reasoning_effort = ""
+
+[hotkey]
+# Test key. Switch to "fn" once the other Fn binding is off and Globe is not Dictation.
+# Names: fn, right_option, left_option, right_command, left_command, right_control, right_shift
+key = "right_option"
+mode = "hold"
+
+[debug]
+# Writes each step under ~/ai/logs/stt-debug/<timestamp>/.
+enabled = true
+
+[replacements]
+# "heard phrase" = "Canonical Form"

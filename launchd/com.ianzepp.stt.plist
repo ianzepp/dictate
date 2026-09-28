@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ianzepp.stt</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/ianzepp/ai/venvs/bonsai-mlx/bin/python</string>
+        <string>/Users/ianzepp/ai/stt-service/stt_server.py</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>STT_CONFIG</key>
+        <string>/Users/ianzepp/.config/stt-service/config.toml</string>
+        <key>HF_HOME</key>
+        <string>/Users/ianzepp/ai/huggingface-cache</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/ianzepp/ai/stt-service</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+    <key>StandardOutPath</key>
+    <string>/Users/ianzepp/ai/logs/stt.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/ianzepp/ai/logs/stt.err.log</string>
+</dict>
+</plist>
