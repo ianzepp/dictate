@@ -51,13 +51,27 @@ final class CoreTests: XCTestCase {
         XCTAssertThrowsError(try ConfigFile.parse("[debug]\nenabled = \"yes\"\n"))
     }
 
-    func testHoldToggleIgnoresOtherKeys() {
+    func testHoldFollowsTheKeyBit() {
         var tracker = HoldTracker()
         let spec = HotkeySpec.named("right_option")!
-        XCTAssertEqual(tracker.handle(keyCode: 0x3A, spec: spec), nil)
-        XCTAssertEqual(tracker.handle(keyCode: spec.keyCode, spec: spec), .pressed)
-        XCTAssertEqual(tracker.handle(keyCode: spec.keyCode, spec: spec), .released)
+        let left: UInt = 0x20, right: UInt = 0x40
+        XCTAssertEqual(tracker.handle(keyCode: 0x3A, flags: left, spec: spec), nil)
+        XCTAssertEqual(tracker.handle(keyCode: spec.keyCode, flags: left | right, spec: spec), .pressed)
+        // Left option still down must not keep right option held.
+        XCTAssertEqual(tracker.handle(keyCode: spec.keyCode, flags: left, spec: spec), .released)
         XCTAssertFalse(tracker.holding)
+    }
+
+    func testMissedEventsCorrectThemselves() {
+        var tracker = HoldTracker()
+        let spec = HotkeySpec.named("fn")!
+        let fn: UInt = 1 << 23
+        XCTAssertEqual(tracker.handle(keyCode: 0x3F, flags: fn, spec: spec), .pressed)
+        // The release was missed; the next press is not mistaken for a release.
+        XCTAssertEqual(tracker.handle(keyCode: 0x3F, flags: fn, spec: spec), nil)
+        XCTAssertEqual(tracker.check(flags: fn, spec: spec), nil)
+        XCTAssertEqual(tracker.check(flags: 0, spec: spec), .released)
+        XCTAssertEqual(tracker.check(flags: 0, spec: spec), nil)
     }
 
     func testMenuPreviewWrapsTwoLinesThenEllipsizes() {

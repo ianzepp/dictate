@@ -56,7 +56,7 @@ Run these from the repository root.
 
 6. Free up the Fn key. In System Settings > Keyboard, set "Press 🌐 key to" to Do Nothing. Otherwise Fn also opens the emoji picker or Apple's dictation.
 
-Hold Fn and talk. A small overlay at the bottom of the screen shows Listening, then Transcribing, then Pasted.
+Hold Fn and talk. A small overlay at the bottom of the screen shows Listening, then Transcribing, then Pasted. Its ✕ button cancels.
 
 ## Config
 

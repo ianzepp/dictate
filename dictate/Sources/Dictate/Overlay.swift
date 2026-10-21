@@ -1,18 +1,22 @@
 import AppKit
 
 /// A small pill near the bottom of the active screen that shows what Dictate is
-/// doing. It never takes focus or clicks, and it floats over full-screen apps.
+/// doing. It never takes focus, and it floats over full-screen apps. The close
+/// button is the only thing in it that takes a click.
 final class Overlay {
+    /// Called when the close button is clicked.
+    var onClose: (() -> Void)?
     private let panel: NSPanel
     private let icon = NSImageView()
     private let label = NSTextField(labelWithString: "")
     private let meter = LevelMeter()
     private let spinner = NSProgressIndicator()
+    private let closeButton = NSButton()
     private var hideWork: DispatchWorkItem?
 
     init() {
         panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 190, height: 44),
+            contentRect: NSRect(x: 0, y: 0, width: 230, height: 44),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: true
@@ -22,7 +26,8 @@ final class Overlay {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        panel.ignoresMouseEvents = true
+        panel.ignoresMouseEvents = false
+        panel.becomesKeyOnlyIfNeeded = true
         panel.hidesOnDeactivate = false
 
         let background = NSVisualEffectView()
@@ -39,8 +44,17 @@ final class Overlay {
         label.lineBreakMode = .byTruncatingTail
         spinner.style = .spinning
         spinner.controlSize = .small
+        closeButton.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Cancel")
+        closeButton.symbolConfiguration = .init(pointSize: 15, weight: .regular)
+        closeButton.contentTintColor = .secondaryLabelColor
+        closeButton.isBordered = false
+        closeButton.target = self
+        closeButton.action = #selector(closeClicked)
+        closeButton.toolTip = "Cancel"
 
-        let row = NSStackView(views: [icon, label, meter, spinner])
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let row = NSStackView(views: [icon, label, meter, spinner, spacer, closeButton])
         row.orientation = .horizontal
         row.spacing = 10
         row.edgeInsets = NSEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
@@ -48,6 +62,7 @@ final class Overlay {
         background.addSubview(row)
         NSLayoutConstraint.activate([
             row.leadingAnchor.constraint(equalTo: background.leadingAnchor),
+            row.widthAnchor.constraint(equalTo: background.widthAnchor),
             row.trailingAnchor.constraint(equalTo: background.trailingAnchor),
             row.centerYAnchor.constraint(equalTo: background.centerYAnchor),
             meter.widthAnchor.constraint(equalToConstant: 44),
@@ -75,6 +90,17 @@ final class Overlay {
     func failed(_ text: String) {
         show(symbol: "exclamationmark.triangle.fill", tint: .systemOrange, text: text)
         hide(after: 2.0)
+    }
+
+    /// Hide at once, as after a cancel.
+    func dismiss() {
+        hideWork?.cancel()
+        hideWork = nil
+        panel.orderOut(nil)
+    }
+
+    @objc private func closeClicked() {
+        onClose?()
     }
 
     func level(_ value: Float) {

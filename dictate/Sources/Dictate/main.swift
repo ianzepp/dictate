@@ -22,6 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var busy = false
     private var micGranted = false
     private var recent: [String] = []
+    /// Bumped by each hold and each cancel; a reply from an older session is dropped.
+    private var session = 0
+    private var holdPoll: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusMenuItem.isEnabled = false
@@ -31,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildMenu()
         setSymbol("mic")
         recorder.onLevel = { [weak self] level in self?.overlay.level(level) }
+        overlay.onClose = { [weak self] in self?.cancel() }
         loadConfig()
         PasteboardPutter.promptForAccessibility()
         requestMicrophone()
@@ -136,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func onFlags(_ event: NSEvent) {
         guard let spec = config?.hotkey else { return }
-        let edge = tracker.handle(keyCode: event.keyCode, spec: spec)
+        let edge = tracker.handle(keyCode: event.keyCode, flags: UInt(event.modifierFlags.rawValue), spec: spec)
         switch edge {
         case .pressed:
             if !busy { begin() }
@@ -154,15 +158,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         do {
             try recorder.start()
+            session += 1
             setSymbol("mic.fill")
             note("Listening")
             overlay.listening()
+            watchHold()
         } catch {
             fail(error.localizedDescription)
         }
     }
 
+    /// A missed release event would otherwise leave the microphone on. Twice a
+    /// second, check that the key is still down.
+    private func watchHold() {
+        holdPoll?.invalidate()
+        holdPoll = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self, let spec = self.config?.hotkey else { return }
+            let flags = UInt(CGEventSource.flagsState(.combinedSessionState).rawValue)
+            if self.tracker.check(flags: flags, spec: spec) == .released, self.recorder.isRecording {
+                self.finish()
+            }
+        }
+    }
+
+    /// The overlay's close button: stop recording or ignore the pending reply, and paste nothing.
+    private func cancel() {
+        session += 1
+        holdPoll?.invalidate()
+        holdPoll = nil
+        tracker.reset()
+        if recorder.isRecording {
+            _ = try? recorder.stop()
+        }
+        busy = false
+        setSymbol("mic")
+        note("Cancelled")
+        overlay.dismiss()
+    }
+
     private func finish() {
+        holdPoll?.invalidate()
+        holdPoll = nil
         let wav: Data
         do {
             wav = try recorder.stop()
@@ -190,8 +226,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setSymbol("ellipsis.circle")
         note("Transcribing")
         overlay.working()
+        let current = session
         SpeechClient.transcribe(baseURL: baseURL, wav: wav) { [weak self] result in
             DispatchQueue.main.async {
+                guard self?.session == current else { return }
                 self?.busy = false
                 self?.setSymbol("mic")
                 switch result {
@@ -218,8 +256,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setSymbol("ellipsis.circle")
         note("Transcribing")
         overlay.working()
+        let current = session
         SpeechClient.recognize(baseURL: baseURL, wav: wav) { [weak self] result in
             DispatchQueue.main.async {
+                guard self?.session == current else { return }
                 switch result {
                 case .failure(let error):
                     try? trail.write(name: "error.txt", text: "phase 1\n\(error.localizedDescription)\n")
@@ -237,6 +277,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                     SpeechClient.cleanup(baseURL: baseURL, text: phase1.replaced) { result2 in
                         DispatchQueue.main.async {
+                            guard self?.session == current else { return }
                             self?.busy = false
                             self?.setSymbol("mic")
                             switch result2 {
