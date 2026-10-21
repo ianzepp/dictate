@@ -28,17 +28,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var holdPoll: Timer?
     /// Toggled by the lock key during a recording. While locked, the hold key is ignored.
     private var locked = false
+    /// The last /health answer. nil until the first check, and when the service does not answer.
+    private var health: ServiceHealth?
+    private var healthChecked = false
+    /// True while the card shows the idle state, so a health change may redraw it.
+    private var showingIdle = false
+    private var healthTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusMenuItem.isEnabled = false
         statusMenuItem.view = statusRow
         let menu = NSMenu()
         menu.autoenablesItems = false
+        menu.delegate = self
         statusItem.menu = menu
         rebuildMenu()
         setSymbol("mic")
         recorder.onLevel = { [weak self] level in self?.overlay.level(level) }
         overlay.onClose = { [weak self] in self?.cancel() }
+        healthTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            self?.checkHealth()
+        }
         loadConfig()
         PasteboardPutter.promptForAccessibility()
         requestMicrophone()
@@ -102,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let text = try String(contentsOfFile: path, encoding: .utf8)
             config = try ConfigFile.parse(text)
             ready()
+            checkHealth()
         } catch {
             note("Config problem", detail: "\(error)", style: .problem)
         }
@@ -362,6 +373,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func note(_ title: String, detail: String?, style: StatusStyle) {
+        showingIdle = false
         statusMenuItem.title = title
         statusRow.show(style, title: title, detail: detail)
     }
@@ -373,8 +385,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         overlay.dismiss()
     }
 
+    /// The idle card says whether dictation will work right now, from the last health check.
     private func ready() {
-        note("Ready", detail: "Hold \(keyName) to dictate", style: .ready)
+        let hold = "Hold \(keyName) to dictate"
+        if healthChecked, health == nil {
+            note("Speech service not running", detail: "See ~/Library/Logs/Dictate/stt.err.log", style: .problem)
+        } else if let speech = health?.speech, speech.state != "ready" {
+            switch speech.state {
+            case "downloading":
+                note("Downloading speech model", detail: "Dictation works when it finishes", style: .working)
+            case "failed":
+                note("Speech model unavailable", detail: speech.detail, style: .problem)
+            default:
+                note("Loading speech model", detail: "Dictation works in a moment", style: .working)
+            }
+        } else if let cleanup = health?.cleanup, ["missing", "unreachable"].contains(cleanup.state) {
+            note("Ready", detail: "\(hold). Cleanup is off: \(cleanup.detail)", style: .ready)
+        } else if health?.cleanup.state == "starting" {
+            note("Ready", detail: "\(hold). Cleanup starts in a moment", style: .ready)
+        } else {
+            note("Ready", detail: hold, style: .ready)
+        }
+        showingIdle = true
+    }
+
+    private func checkHealth() {
+        guard let baseURL = config?.serviceURL else { return }
+        SpeechClient.health(baseURL: baseURL) { [weak self] reading in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                let changed = !self.healthChecked || reading != self.health
+                self.health = reading
+                self.healthChecked = true
+                if changed && self.showingIdle { self.ready() }
+            }
+        }
     }
 
     private func noteMicrophoneDenied() {
@@ -399,5 +444,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+}
+
+extension AppDelegate: NSMenuDelegate {
+    func menuWillOpen(_ menu: NSMenu) {
+        checkHealth()
     }
 }

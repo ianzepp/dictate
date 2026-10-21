@@ -53,7 +53,6 @@ def download(repo: str, root: Path = MODELS_DIR) -> Path:
     from huggingface_hub import snapshot_download
 
     local_dir = local_dir_for(repo, root)
-    local_dir.mkdir(parents=True, exist_ok=True)
     log.info("downloading %s to %s", repo, local_dir)
     snapshot_download(repo_id=repo, local_dir=local_dir)
     if "whisper" in repo:
@@ -61,6 +60,22 @@ def download(repo: str, root: Path = MODELS_DIR) -> Path:
         if fetched:
             log.info("added processor files: %s", ", ".join(fetched))
     return local_dir
+
+
+def describe_failure(model: str, exc: Exception) -> str:
+    """One plain sentence for the menu, instead of a Hugging Face error page."""
+    from huggingface_hub.errors import LocalEntryNotFoundError, RepositoryNotFoundError
+
+    if isinstance(exc, RepositoryNotFoundError):
+        return f"{model} was not found on Hugging Face"
+    if isinstance(exc, (LocalEntryNotFoundError, ConnectionError)) or "connect" in str(exc).lower():
+        return "No internet connection for the download; retrying"
+    first = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
+    return first[:120]
+
+
+def needs_download(model: str, root: Path = MODELS_DIR) -> bool:
+    return not is_local_path(model) and not (local_dir_for(model, root) / "config.json").is_file()
 
 
 def speech_model_dir(model: str, root: Path = MODELS_DIR, fetch: Callable[[str, Path], Path] = download) -> Path:

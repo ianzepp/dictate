@@ -21,6 +21,19 @@ struct PhaseOne {
 }
 
 enum SpeechClient {
+    /// nil when the service does not answer at all.
+    static func health(baseURL: String, completion: @escaping (ServiceHealth?) -> Void) {
+        guard let url = endpoint(baseURL, path: "/health") else {
+            completion(nil)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 3
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            completion(data.flatMap(ServiceHealth.parse))
+        }.resume()
+    }
+
     static func recognize(baseURL: String, wav: Data, completion: @escaping (Result<PhaseOne, Error>) -> Void) {
         send(baseURL: baseURL, path: "/transcribe/raw", wav: wav) { result in
             switch result {
@@ -110,6 +123,9 @@ enum SpeechClient {
     }
 
     private static func decode(_ data: Data?, _ response: URLResponse?, _ error: Error?) -> Result<[String: Any], Error> {
+        if let error = error as? URLError, [.cannotConnectToHost, .networkConnectionLost].contains(error.code) {
+            return .failure(TranscribeError.server("The speech service isn't running"))
+        }
         if let error {
             return .failure(error)
         }

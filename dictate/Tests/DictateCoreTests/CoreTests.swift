@@ -91,6 +91,15 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(Speech.voicedSeconds(talk), 0.5, accuracy: 0.03)
     }
 
+    func testHealthParse() {
+        let body = Data(#"{"status":"ok","speech":{"state":"downloading","detail":"Downloading a/b"},"cleanup":{"state":"missing","detail":"llama-server missing"}}"#.utf8)
+        let health = ServiceHealth.parse(body)
+        XCTAssertEqual(health?.speech, .init(state: "downloading", detail: "Downloading a/b"))
+        XCTAssertEqual(health?.cleanup.state, "missing")
+        // An older service without the state fields reads as unknown, not as healthy.
+        XCTAssertNil(ServiceHealth.parse(Data(#"{"status":"ok"}"#.utf8)))
+    }
+
     func testMenuPreviewWrapsTwoLinesThenEllipsizes() {
         XCTAssertEqual(MenuPreview.lines("Hello.", width: 10), ["Hello."])
         XCTAssertEqual(MenuPreview.lines("one two three four", width: 10), ["one two", "three four"])

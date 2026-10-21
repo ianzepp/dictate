@@ -18,7 +18,7 @@ fail() { echo "install.sh: $*" >&2; exit 1; }
 [ -f "$CONFIG" ] || fail "no config; copy config.example.toml to $CONFIG"
 STT_CONFIG="$CONFIG" "$PYTHON" "$ROOT/stt_server.py" --check || fail "fix the config above, then run this again"
 if [ -z "$LLAMA_SERVER" ]; then
-    echo "install.sh: llama-server not found. A [cleanup] model needs it: brew install llama.cpp" >&2
+    echo "install.sh: llama-server not found. Dictation works, but without cleanup until you run: brew install llama.cpp" >&2
 fi
 
 UID_NUM="$(id -u)"
