@@ -13,6 +13,9 @@
         <key>DICTATE_CONFIG</key>
         <string>__HOME__/.config/dictate/config.toml</string>
     </dict>
+    <!-- launchd runs agents at background priority by default, which made model loads 15-35x slower. -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>

@@ -16,6 +16,9 @@
     </dict>
     <key>WorkingDirectory</key>
     <string>__ROOT__</string>
+    <!-- launchd runs agents at background priority by default, which made model loads 15-35x slower. -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
