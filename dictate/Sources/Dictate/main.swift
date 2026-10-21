@@ -183,14 +183,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         do {
-            try recorder.start()
+            // Turn down first, so the first moment of the recording is quiet too.
             ducker.duck()
+            try recorder.start()
             session += 1
             setSymbol("mic.fill")
             note("Listening", detail: "Let go of \(keyName) to finish", style: .listening)
             overlay.listening()
             watchHold()
         } catch {
+            ducker.restore()
             fail(error.localizedDescription)
         }
     }
@@ -450,7 +452,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func quit() {
-        ducker.restore()
+        ducker.restoreNow()
         NSApp.terminate(nil)
     }
 }

@@ -113,6 +113,13 @@ final class CoreTests: XCTestCase {
         XCTAssertFalse(Duck.shouldRestore(current: 0.4, ducked: 0.0625))
     }
 
+    func testFadeMovesLinearlyAndEndsOnTarget() {
+        XCTAssertEqual(Duck.fade(from: 0.5, to: 0.05, elapsed: 0, duration: 0.15), 0.5, accuracy: 0.0001)
+        XCTAssertEqual(Duck.fade(from: 0.5, to: 0.05, elapsed: 0.075, duration: 0.15), 0.275, accuracy: 0.0001)
+        XCTAssertEqual(Duck.fade(from: 0.5, to: 0.05, elapsed: 0.2, duration: 0.15), 0.05)
+        XCTAssertEqual(Duck.fade(from: 0.1, to: 0.6, elapsed: 1, duration: 0), 0.6)
+    }
+
     func testMenuPreviewWrapsTwoLinesThenEllipsizes() {
         XCTAssertEqual(MenuPreview.lines("Hello.", width: 10), ["Hello."])
         XCTAssertEqual(MenuPreview.lines("one two three four", width: 10), ["one two", "three four"])

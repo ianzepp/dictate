@@ -10,39 +10,98 @@ import Foundation
 /// the Mac at a tenth of its volume. Outputs without a software volume, such
 /// as some HDMI and USB devices, are left alone.
 final class VolumeDucker {
-    private struct Ducked {
+    private struct Session {
         let device: AudioObjectID
-        let volume: Float32
-        let ducked: Float32
+        /// The user's volume before the first press.
+        let original: Float32
+        /// What Dictate last set, read back from the device.
+        var lastSet: Float32
     }
 
     private static let defaultsKey = "duckedOutput"
-    private var current: Ducked?
+    private var session: Session?
+    private var timer: Timer?
 
     init() {
         recoverAfterCrash()
     }
 
+    /// Fades down from the press. A press during a fade back up turns down
+    /// again from wherever the volume is, and keeps the original level.
     func duck() {
-        guard current == nil,
-              let device = Self.defaultOutput(),
-              Self.isSettable(device),
-              let volume = Self.volume(device), volume > 0.001,
-              Self.setVolume(device, Duck.level(from: volume)),
-              let ducked = Self.volume(device)
-        else { return }
-        current = Ducked(device: device, volume: volume, ducked: ducked)
-        if let uid = Self.uid(device) {
-            UserDefaults.standard.set(["uid": uid, "volume": volume, "ducked": ducked], forKey: Self.defaultsKey)
+        if session == nil {
+            guard let device = Self.defaultOutput(),
+                  Self.isSettable(device),
+                  let volume = Self.volume(device), volume > 0.001
+            else { return }
+            session = Session(device: device, original: volume, lastSet: volume)
+            if let uid = Self.uid(device) {
+                UserDefaults.standard.set(
+                    ["uid": uid, "volume": volume, "ducked": Duck.level(from: volume)],
+                    forKey: Self.defaultsKey
+                )
+            }
+        }
+        guard let session else { return }
+        fade(to: Duck.level(from: session.original), over: Duck.fadeDown) {}
+    }
+
+    /// Fades back up to the original volume, unless the user changed it meanwhile.
+    func restore() {
+        guard let session else { return }
+        fade(to: session.original, over: Duck.fadeUp) { [weak self] in
+            self?.finish()
         }
     }
 
-    func restore() {
-        guard let saved = current else { return }
-        current = nil
+    /// No fade: the app is quitting and a timer would not get to run.
+    func restoreNow() {
+        timer?.invalidate()
+        timer = nil
+        guard let session else { return }
+        if let now = Self.volume(session.device), Duck.shouldRestore(current: now, ducked: session.lastSet) {
+            _ = Self.setVolume(session.device, session.original)
+        }
+        finish()
+    }
+
+    private func finish() {
+        timer?.invalidate()
+        timer = nil
+        session = nil
         UserDefaults.standard.removeObject(forKey: Self.defaultsKey)
-        guard let now = Self.volume(saved.device), Duck.shouldRestore(current: now, ducked: saved.ducked) else { return }
-        _ = Self.setVolume(saved.device, saved.volume)
+    }
+
+    private func fade(to target: Float32, over duration: Double, then done: @escaping () -> Void) {
+        timer?.invalidate()
+        guard let start = session?.lastSet else { return }
+        let began = Date()
+        let timer = Timer(timeInterval: 0.015, repeats: true) { [weak self] timer in
+            guard let self, var session = self.session else {
+                timer.invalidate()
+                return
+            }
+            guard let now = Self.volume(session.device), Duck.shouldRestore(current: now, ducked: session.lastSet) else {
+                // The user moved the volume; leave it where they put it.
+                self.finish()
+                return
+            }
+            let elapsed = Date().timeIntervalSince(began)
+            let value = Duck.fade(from: start, to: target, elapsed: elapsed, duration: duration)
+            if Self.setVolume(session.device, value), let readBack = Self.volume(session.device) {
+                session.lastSet = readBack
+                self.session = session
+            }
+            if elapsed >= duration {
+                timer.invalidate()
+                if self.timer === timer { self.timer = nil }
+                done()
+            }
+        }
+        // .common keeps the fade running while the menu is open.
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+        timer.fire()
     }
 
     private func recoverAfterCrash() {
