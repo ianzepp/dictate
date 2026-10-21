@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let statusMenuItem = NSMenuItem(title: "Starting", action: nil, keyEquivalent: "")
     private let recorder = Recorder()
+    private let overlay = Overlay()
     private var config: ServiceConfig?
     private var globalMonitor: Any?
     private var localMonitor: Any?
@@ -29,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
         rebuildMenu()
         setSymbol("mic")
+        recorder.onLevel = { [weak self] level in self?.overlay.level(level) }
         loadConfig()
         PasteboardPutter.promptForAccessibility()
         requestMicrophone()
@@ -147,15 +149,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func begin() {
         guard micGranted else {
-            note("Microphone permission denied")
+            fail("Microphone permission denied")
             return
         }
         do {
             try recorder.start()
             setSymbol("mic.fill")
             note("Listening")
+            overlay.listening()
         } catch {
-            note(error.localizedDescription)
+            fail(error.localizedDescription)
         }
     }
 
@@ -165,13 +168,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             wav = try recorder.stop()
         } catch {
             setSymbol("mic")
-            note(error.localizedDescription)
+            fail(error.localizedDescription)
             return
         }
         // Ignore a tap of the key. 0.15 s of 16 kHz mono PCM16 plus the 44-byte header.
         if wav.count < 44 + 16000 * 2 * 15 / 100 {
             setSymbol("mic")
-            note("Too short")
+            fail("Too short")
             return
         }
         guard let baseURL = config?.sttBaseURL else { return }
@@ -186,6 +189,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         busy = true
         setSymbol("ellipsis.circle")
         note("Transcribing")
+        overlay.working()
         SpeechClient.transcribe(baseURL: baseURL, wav: wav) { [weak self] result in
             DispatchQueue.main.async {
                 self?.busy = false
@@ -194,7 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 case .success(let text):
                     self?.deliver(text, stamp: nil)
                 case .failure(let error):
-                    self?.note(error.localizedDescription)
+                    self?.fail(error.localizedDescription)
                 }
             }
         }
@@ -207,12 +211,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             trail = try DebugTrail.begin()
             try trail.write(name: "01-audio.wav", data: wav)
         } catch {
-            note(error.localizedDescription)
+            fail(error.localizedDescription)
             return
         }
         busy = true
         setSymbol("ellipsis.circle")
         note("Transcribing")
+        overlay.working()
         SpeechClient.recognize(baseURL: baseURL, wav: wav) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -220,14 +225,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     try? trail.write(name: "error.txt", text: "phase 1\n\(error.localizedDescription)\n")
                     self?.busy = false
                     self?.setSymbol("mic")
-                    self?.note(error.localizedDescription)
+                    self?.fail(error.localizedDescription)
                 case .success(let phase1):
                     let phase1Text = "raw:\n\(phase1.raw)\n\nreplaced:\n\(phase1.replaced)\n"
                     try? trail.write(name: "02-phase1.txt", text: phase1Text)
                     if phase1.replaced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         self?.busy = false
                         self?.setSymbol("mic")
-                        self?.note("Nothing to paste")
+                        self?.fail("Nothing heard")
                         return
                     }
                     SpeechClient.cleanup(baseURL: baseURL, text: phase1.replaced) { result2 in
@@ -237,7 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             switch result2 {
                             case .failure(let error):
                                 try? trail.write(name: "error.txt", text: "phase 2\n\(error.localizedDescription)\n")
-                                self?.note(error.localizedDescription)
+                                self?.fail(error.localizedDescription)
                             case .success(let cleaned):
                                 try? trail.write(name: "03-phase2.txt", text: cleaned + "\n")
                                 self?.deliver(cleaned, stamp: trail.stamp)
@@ -254,8 +259,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let suffix = stamp.map { " \($0)" } ?? ""
         if PasteboardPutter.paste(text) {
             note("Pasted" + suffix)
+            overlay.done("Pasted")
         } else {
             note("Copied. Grant Accessibility to paste")
+            overlay.failed("Copied, not pasted")
         }
     }
 
@@ -267,6 +274,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func note(_ text: String) {
         statusMenuItem.title = text
+    }
+
+    /// A failure during a dictation: the menu keeps the full text, the overlay shows it briefly.
+    private func fail(_ text: String) {
+        note(text)
+        overlay.failed(text)
     }
 
     @objc private func quit() {

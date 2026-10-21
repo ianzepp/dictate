@@ -21,6 +21,8 @@ final class Recorder {
     private var chunks: [AVAudioPCMBuffer] = []
     private let lock = NSLock()
     private(set) var isRecording = false
+    /// Microphone level from 0 to 1, delivered on the main queue while recording.
+    var onLevel: ((Float) -> Void)?
 
     func start() throws {
         if isRecording { return }
@@ -32,6 +34,10 @@ final class Recorder {
         lock.unlock()
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
             guard let copy = Self.copy(buffer) else { return }
+            if let onLevel = self?.onLevel {
+                let level = Self.level(copy)
+                DispatchQueue.main.async { onLevel(level) }
+            }
             self?.lock.lock()
             self?.chunks.append(copy)
             self?.lock.unlock()
@@ -59,6 +65,19 @@ final class Recorder {
         let samples = try Self.samples16kMono(taken)
         if samples.isEmpty { throw RecorderError.empty }
         return Wav.pcm16Mono(samples: samples)
+    }
+
+    /// RMS of the first channel on a -50 to -10 dBFS scale, so normal speech fills it.
+    private static func level(_ buffer: AVAudioPCMBuffer) -> Float {
+        let frames = Int(buffer.frameLength)
+        guard frames > 0, let channel = buffer.floatChannelData?[0] else { return 0 }
+        var sum: Float = 0
+        for index in 0..<frames {
+            sum += channel[index] * channel[index]
+        }
+        let rms = (sum / Float(frames)).squareRoot()
+        let db = 20 * log10(max(rms, 1e-6))
+        return max(0, min(1, (db + 50) / 40))
     }
 
     private static func copy(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
