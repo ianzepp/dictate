@@ -41,9 +41,23 @@ final class RecentTranscriptView: NSView {
             .foregroundColor: highlighted ? NSColor.selectedMenuItemTextColor : NSColor.labelColor,
             .paragraphStyle: paragraph,
         ]
-        let textRect = bounds.insetBy(dx: 16, dy: 7)
+        var textRect = bounds.insetBy(dx: 16, dy: 7)
+        textRect.size.width -= 22
         lines.joined(separator: "\n").draw(in: textRect, withAttributes: attributes)
+        if highlighted, let copy = Self.copyIcon {
+            let size = copy.size
+            let origin = NSPoint(x: bounds.maxX - 16 - size.width, y: bounds.midY - size.height / 2)
+            copy.draw(in: NSRect(origin: origin, size: size))
+        }
     }
+
+    /// Shown on the highlighted row, as a hint that clicking copies.
+    private static let copyIcon: NSImage? = {
+        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+            .applying(.init(paletteColors: [.selectedMenuItemTextColor]))
+        return NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Copy")?
+            .withSymbolConfiguration(config)
+    }()
 
     private static func height(lineCount: Int) -> CGFloat {
         14 + CGFloat(lineCount) * 18

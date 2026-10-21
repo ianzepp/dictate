@@ -13,6 +13,7 @@ app.run()
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let statusMenuItem = NSMenuItem(title: "Starting", action: nil, keyEquivalent: "")
+    private let statusRow = StatusRowView()
     private let recorder = Recorder()
     private let overlay = Overlay()
     private var config: ServiceConfig?
@@ -28,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusMenuItem.isEnabled = false
+        statusMenuItem.view = statusRow
         let menu = NSMenu()
         menu.autoenablesItems = false
         statusItem.menu = menu
@@ -50,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(.separator())
             let header = NSMenuItem()
             header.attributedTitle = NSAttributedString(
-                string: "Recent",
+                string: "Recent · click to copy",
                 attributes: [
                     .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
                     .foregroundColor: NSColor.secondaryLabelColor,
@@ -88,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let board = NSPasteboard.general
         board.clearContents()
         board.setString(text, forType: .string)
-        note("Copied")
+        note("Copied", detail: "The transcript is on the clipboard", style: .done)
     }
 
     private func loadConfig() {
@@ -97,9 +99,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             let text = try String(contentsOfFile: path, encoding: .utf8)
             config = try ConfigFile.parse(text)
-            note("Hold \(config?.hotkey.name ?? "key")")
+            ready()
         } catch {
-            note("Config: \(error)")
+            note("Config problem", detail: "\(error)", style: .problem)
         }
     }
 
@@ -115,12 +117,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     if granted {
                         self?.armHotkey()
                     } else {
-                        self?.note("Microphone permission denied")
+                        self?.noteMicrophoneDenied()
                     }
                 }
             }
         default:
-            note("Microphone permission denied")
+            noteMicrophoneDenied()
         }
     }
 
@@ -134,7 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return event
         }
         if globalMonitor == nil {
-            note("Grant Input Monitoring to Dictate, then relaunch")
+            note("Input Monitoring needed", detail: "Allow Dictate in System Settings > Privacy & Security, then relaunch", style: .problem)
         }
     }
 
@@ -153,14 +155,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func begin() {
         guard micGranted else {
-            fail("Microphone permission denied")
+            noteMicrophoneDenied()
+            overlay.failed("Microphone access needed")
             return
         }
         do {
             try recorder.start()
             session += 1
             setSymbol("mic.fill")
-            note("Listening")
+            note("Listening", detail: "Let go of \(keyName) to finish", style: .listening)
             overlay.listening()
             watchHold()
         } catch {
@@ -192,7 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         busy = false
         setSymbol("mic")
-        note("Cancelled")
+        note("Cancelled", detail: "Nothing was pasted", style: .info)
         overlay.dismiss()
     }
 
@@ -210,7 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Ignore a tap of the key. 0.15 s of 16 kHz mono PCM16 plus the 44-byte header.
         if wav.count < 44 + 16000 * 2 * 15 / 100 {
             setSymbol("mic")
-            fail("Too short")
+            fail("Too short", detail: "Keep holding the key while you talk")
             return
         }
         guard let baseURL = config?.serviceURL else { return }
@@ -224,7 +227,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func transcribeOnce(wav: Data, baseURL: String) {
         busy = true
         setSymbol("ellipsis.circle")
-        note("Transcribing")
+        note("Transcribing", detail: nil, style: .working)
         overlay.working()
         let current = session
         SpeechClient.transcribe(baseURL: baseURL, wav: wav) { [weak self] result in
@@ -254,7 +257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         busy = true
         setSymbol("ellipsis.circle")
-        note("Transcribing")
+        note("Transcribing", detail: nil, style: .working)
         overlay.working()
         let current = session
         SpeechClient.recognize(baseURL: baseURL, wav: wav) { [weak self] result in
@@ -272,7 +275,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     if phase1.replaced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         self?.busy = false
                         self?.setSymbol("mic")
-                        self?.fail("Nothing heard")
+                        self?.fail("Nothing heard", detail: "The recording had no speech in it")
                         return
                     }
                     SpeechClient.cleanup(baseURL: baseURL, text: phase1.replaced) { result2 in
@@ -297,12 +300,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func deliver(_ text: String, stamp: String?) {
         remember(text)
-        let suffix = stamp.map { " \($0)" } ?? ""
         if PasteboardPutter.paste(text) {
-            note("Pasted" + suffix)
+            note("Pasted", detail: stamp.map { "Debug trail \($0)" }, style: .done)
             overlay.done("Pasted")
         } else {
-            note("Copied. Grant Accessibility to paste")
+            note("Copied, not pasted", detail: "Allow Dictate under Accessibility to paste", style: .problem)
             overlay.failed("Copied, not pasted")
         }
     }
@@ -313,13 +315,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = image
     }
 
-    private func note(_ text: String) {
-        statusMenuItem.title = text
+    private func note(_ title: String, detail: String?, style: StatusStyle) {
+        statusMenuItem.title = title
+        statusRow.show(style, title: title, detail: detail)
+    }
+
+    private func ready() {
+        note("Ready", detail: "Hold \(keyName) to dictate", style: .ready)
+    }
+
+    private func noteMicrophoneDenied() {
+        note("Microphone access needed", detail: "Allow Dictate in System Settings > Privacy & Security", style: .problem)
+    }
+
+    /// "fn" reads as Fn, "right_option" as Right Option.
+    private var keyName: String {
+        guard let name = config?.hotkey.name else { return "the key" }
+        if name == "fn" { return "Fn" }
+        return name.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
     }
 
     /// A failure during a dictation: the menu keeps the full text, the overlay shows it briefly.
-    private func fail(_ text: String) {
-        note(text)
+    private func fail(_ text: String, detail: String? = nil) {
+        note(text, detail: detail, style: .problem)
         overlay.failed(text)
     }
 
