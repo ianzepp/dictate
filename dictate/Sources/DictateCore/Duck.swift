@@ -3,8 +3,10 @@ import Foundation
 /// The arithmetic for turning other audio down while recording, so the
 /// microphone does not pick up music. The volume calls live in the app.
 public enum Duck {
-    /// Recording plays other audio at a tenth of its volume.
-    public static let factor: Float = 0.1
+    /// Recording silences other audio. A tenth of the volume was tried first:
+    /// on laptop speakers Whisper still transcribed the lyrics, and a stricter
+    /// silence check would have dropped quiet speech.
+    public static let factor: Float = 0
 
     public static func level(from volume: Float) -> Float {
         volume * factor

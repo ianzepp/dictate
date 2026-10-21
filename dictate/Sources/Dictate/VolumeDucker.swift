@@ -7,7 +7,7 @@ import Foundation
 ///
 /// The original volume is also saved to user defaults, so a crash in the
 /// middle of a dictation is repaired on the next launch instead of leaving
-/// the Mac at a tenth of its volume. Outputs without a software volume, such
+/// the Mac silent. Outputs without a software volume, such
 /// as some HDMI and USB devices, are left alone.
 final class VolumeDucker {
     private struct Session {

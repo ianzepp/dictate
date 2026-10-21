@@ -8,7 +8,7 @@ Hold a key, talk, let go. Dictate records your voice, turns it into text with a 
 - **Lock for long dictation.** Add Right Option while holding Fn, and you can let go of both keys. See [Hotkeys](#hotkeys).
 - **Cancel.** Click the ✕ on the overlay. Nothing is pasted.
 - **Change your mind.** Letting go without saying anything pastes nothing. The overlay shows Nothing heard.
-- **Music keeps playing, quietly.** While you record, Dictate turns your Mac's output down to a tenth of its volume, so the microphone hears you and not the song, then puts it back when you let go. If you change the volume yourself mid-dictation, yours is kept.
+- **Music fades out while you talk.** While you record, Dictate fades your Mac's output to silent, so the microphone hears you and not the song, then fades it back when you let go. If you change the volume yourself mid-dictation, yours is kept.
 - **The menu-bar icon** shows the current state and the last five transcripts. Click one to copy it.
 
 ## Hotkeys
