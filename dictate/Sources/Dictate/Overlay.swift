@@ -87,6 +87,12 @@ final class Overlay {
         hide(after: 0.8)
     }
 
+    /// A neutral outcome, such as a hold with no speech in it.
+    func notice(_ text: String) {
+        show(symbol: "mic.slash", tint: .secondaryLabelColor, text: text)
+        hide(after: 0.8)
+    }
+
     func failed(_ text: String) {
         show(symbol: "exclamationmark.triangle.fill", tint: .systemOrange, text: text)
         hide(after: 2.0)

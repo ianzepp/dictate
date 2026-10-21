@@ -202,18 +202,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func finish() {
         holdPoll?.invalidate()
         holdPoll = nil
-        let wav: Data
+        let recording: Recording
         do {
-            wav = try recorder.stop()
+            recording = try recorder.stop()
         } catch {
             setSymbol("mic")
             fail(error.localizedDescription)
             return
         }
+        let wav = recording.wav
         // Ignore a tap of the key. 0.15 s of 16 kHz mono PCM16 plus the 44-byte header.
         if wav.count < 44 + 16000 * 2 * 15 / 100 {
             setSymbol("mic")
             fail("Too short", detail: "Keep holding the key while you talk")
+            return
+        }
+        // Letting go without talking is how a hold gets abandoned, so it is not an error.
+        if !recording.hasSpeech {
+            setSymbol("mic")
+            note("Nothing heard", detail: "Nothing was pasted", style: .info)
+            overlay.notice("Nothing heard")
             return
         }
         guard let baseURL = config?.serviceURL else { return }

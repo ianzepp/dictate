@@ -16,6 +16,12 @@ enum RecorderError: LocalizedError {
     }
 }
 
+/// One hold of the key: the upload, and whether anyone spoke.
+struct Recording {
+    let wav: Data
+    let hasSpeech: Bool
+}
+
 final class Recorder {
     private let engine = AVAudioEngine()
     private var chunks: [AVAudioPCMBuffer] = []
@@ -53,7 +59,7 @@ final class Recorder {
         isRecording = true
     }
 
-    func stop() throws -> Data {
+    func stop() throws -> Recording {
         guard isRecording else { throw RecorderError.empty }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
@@ -64,7 +70,7 @@ final class Recorder {
         lock.unlock()
         let samples = try Self.samples16kMono(taken)
         if samples.isEmpty { throw RecorderError.empty }
-        return Wav.pcm16Mono(samples: samples)
+        return Recording(wav: Wav.pcm16Mono(samples: samples), hasSpeech: Speech.hasSpeech(samples))
     }
 
     /// RMS of the first channel on a -50 to -10 dBFS scale, so normal speech fills it.

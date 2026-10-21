@@ -74,6 +74,19 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(tracker.check(flags: 0, spec: spec), nil)
     }
 
+    func testSilenceHasNoSpeech() {
+        let second = 16000
+        XCTAssertFalse(Speech.hasSpeech([Int16](repeating: 0, count: second)))
+        // Room noise around -60 dBFS.
+        XCTAssertFalse(Speech.hasSpeech((0..<second).map { $0 % 2 == 0 ? 33 : -33 }))
+        // 0.1 s of a -20 dBFS tone is a click, not speech.
+        let click = (0..<second).map { $0 < second / 10 ? Int16($0 % 2 == 0 ? 3277 : -3277) : 0 }
+        XCTAssertFalse(Speech.hasSpeech(click))
+        let talk = (0..<second).map { $0 < second / 2 ? Int16($0 % 2 == 0 ? 3277 : -3277) : 0 }
+        XCTAssertTrue(Speech.hasSpeech(talk))
+        XCTAssertEqual(Speech.voicedSeconds(talk), 0.5, accuracy: 0.03)
+    }
+
     func testMenuPreviewWrapsTwoLinesThenEllipsizes() {
         XCTAssertEqual(MenuPreview.lines("Hello.", width: 10), ["Hello."])
         XCTAssertEqual(MenuPreview.lines("one two three four", width: 10), ["one two", "three four"])
