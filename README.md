@@ -58,6 +58,8 @@ Run these from the repository root.
 
 Hold Fn and talk. A small overlay at the bottom of the screen shows Listening, then Transcribing, then Pasted. Its ✕ button cancels.
 
+For a long dictation, press Right Option while holding Fn. Recording stays on after you let go, and the overlay shows Locked; Fn does nothing while locked. Press Right Option again to unlock: if Fn is down you are back to a normal hold, otherwise it transcribes. `[hotkey] lock` picks a different lock key, or `none`.
+
 ## Config
 
 `~/.config/stt-service/config.toml`. The speech service and the menu-bar app both read it.

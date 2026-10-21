@@ -26,6 +26,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Bumped by each hold and each cancel; a reply from an older session is dropped.
     private var session = 0
     private var holdPoll: Timer?
+    /// Toggled by the lock key during a recording. While locked, the hold key is ignored.
+    private var locked = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusMenuItem.isEnabled = false
@@ -142,7 +144,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func onFlags(_ event: NSEvent) {
         guard let spec = config?.hotkey else { return }
-        let edge = tracker.handle(keyCode: event.keyCode, flags: UInt(event.modifierFlags.rawValue), spec: spec)
+        let flags = UInt(event.modifierFlags.rawValue)
+        if let lock = config?.lockKey, event.keyCode == lock.keyCode, flags & lock.modifierBit != 0,
+           recorder.isRecording {
+            locked ? unlockRecording() : lockRecording()
+            return
+        }
+        // The tracker follows the hold key even while locked, so an unlock knows whether it is down.
+        let edge = tracker.handle(keyCode: event.keyCode, flags: flags, spec: spec)
+        if locked { return }
         switch edge {
         case .pressed:
             if !busy { begin() }
@@ -171,6 +181,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func lockRecording() {
+        locked = true
+        holdPoll?.invalidate()
+        holdPoll = nil
+        note("Listening, locked", detail: "Press \(lockName) to unlock", style: .listening)
+        overlay.locked()
+    }
+
+    /// Back to a normal hold if the hold key is down, otherwise the recording is done.
+    private func unlockRecording() {
+        locked = false
+        guard let spec = config?.hotkey else { return }
+        let live = UInt(CGEventSource.flagsState(.combinedSessionState).rawValue)
+        if tracker.holding && live & spec.anySideBit != 0 {
+            note("Listening", detail: "Let go of \(keyName) to finish", style: .listening)
+            overlay.listening()
+            watchHold()
+        } else {
+            tracker.reset()
+            finish()
+        }
+    }
+
     /// A missed release event would otherwise leave the microphone on. Twice a
     /// second, check that the key is still down.
     private func watchHold() {
@@ -187,6 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The overlay's close button: stop recording or ignore the pending reply, and paste nothing.
     private func cancel() {
         session += 1
+        locked = false
         holdPoll?.invalidate()
         holdPoll = nil
         tracker.reset()
@@ -200,11 +234,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func finish() {
+        locked = false
         holdPoll?.invalidate()
         holdPoll = nil
         let recording: Recording
         do {
             recording = try recorder.stop()
+        } catch RecorderError.empty {
+            // A tap so quick the microphone delivered nothing.
+            dropTap()
+            return
         } catch {
             setSymbol("mic")
             fail(error.localizedDescription)
@@ -213,8 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let wav = recording.wav
         // Ignore a tap of the key. 0.15 s of 16 kHz mono PCM16 plus the 44-byte header.
         if wav.count < 44 + 16000 * 2 * 15 / 100 {
-            setSymbol("mic")
-            fail("Too short", detail: "Keep holding the key while you talk")
+            dropTap()
             return
         }
         // Letting go without talking is how a hold gets abandoned, so it is not an error.
@@ -328,6 +366,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusRow.show(style, title: title, detail: detail)
     }
 
+    /// A tap of the key, such as half of a double tap, is not a failed dictation.
+    private func dropTap() {
+        setSymbol("mic")
+        ready()
+        overlay.dismiss()
+    }
+
     private func ready() {
         note("Ready", detail: "Hold \(keyName) to dictate", style: .ready)
     }
@@ -336,9 +381,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         note("Microphone access needed", detail: "Allow Dictate in System Settings > Privacy & Security", style: .problem)
     }
 
+    private var keyName: String { Self.displayName(config?.hotkey.name) ?? "the key" }
+    private var lockName: String { Self.displayName(config?.lockKey?.name) ?? "the lock key" }
+
     /// "fn" reads as Fn, "right_option" as Right Option.
-    private var keyName: String {
-        guard let name = config?.hotkey.name else { return "the key" }
+    private static func displayName(_ name: String?) -> String? {
+        guard let name else { return nil }
         if name == "fn" { return "Fn" }
         return name.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
     }

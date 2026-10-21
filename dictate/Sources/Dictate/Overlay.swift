@@ -76,6 +76,12 @@ final class Overlay {
         meter.level = 0
     }
 
+    /// Recording continues without the key held; the meter keeps moving.
+    func locked() {
+        show(symbol: "lock.fill", tint: .systemRed, text: "Locked")
+        meter.isHidden = false
+    }
+
     func working() {
         show(symbol: "waveform", tint: .secondaryLabelColor, text: "Transcribing")
         spinner.isHidden = false

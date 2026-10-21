@@ -28,7 +28,7 @@ MANAGED_CLEANUP_NAME = "cleanup"
 _KEYS = {
     "speech": ("model", "language", "port"),
     "cleanup": ("enabled", "model", "port", "url", "name", "reasoning_effort"),
-    "hotkey": ("key", "mode"),
+    "hotkey": ("key", "mode", "lock"),
     "debug": ("enabled",),
 }
 _KIND_NAMES = {str: "a string", int: "a number", bool: "true or false"}
@@ -54,6 +54,8 @@ class Config:
     cleanup_reasoning_effort: str
     hotkey: str
     hotkey_mode: str
+    # Pressed while the hold key is down, keeps recording after the hold key is let go. "" for none.
+    hotkey_lock: str
     replacements: tuple[tuple[str, str], ...]
     debug_enabled: bool = False
 
@@ -166,6 +168,15 @@ class _Reader:
         mode = self.get("hotkey", "mode", str, "hold")
         if mode != "hold":
             raise self.error("hotkey.mode must be hold")
+        # The default steps aside when the hold key is itself right_option.
+        default_lock = "none" if hotkey == "right_option" else "right_option"
+        lock = self.get("hotkey", "lock", str, default_lock)
+        if lock == "none":
+            lock = ""
+        elif lock not in HOTKEY_NAMES:
+            raise self.error(f"hotkey.lock must be none or one of {', '.join(HOTKEY_NAMES)}")
+        elif lock == hotkey:
+            raise self.error("hotkey.lock must differ from hotkey.key")
 
         return Config(
             path=self.path,
@@ -180,6 +191,7 @@ class _Reader:
             cleanup_reasoning_effort=effort,
             hotkey=hotkey,
             hotkey_mode=mode,
+            hotkey_lock=lock,
             replacements=self.replacements,
             debug_enabled=self.get("debug", "enabled", bool, False),
         )

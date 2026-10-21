@@ -6,6 +6,8 @@ import Foundation
 public struct ServiceConfig: Equatable {
     public var speechPort: Int
     public var hotkey: HotkeySpec
+    /// Pressed during a hold, keeps recording after the hold key is let go.
+    public var lockKey: HotkeySpec?
     public var debugEnabled: Bool
 
     public var serviceURL: String { "http://127.0.0.1:\(speechPort)" }
@@ -21,7 +23,7 @@ public enum ConfigFile {
     public static let defaultSpeechPort = 8090
     private static let read: [String: Set<String>] = [
         "speech": ["port"],
-        "hotkey": ["key", "mode"],
+        "hotkey": ["key", "mode", "lock"],
         "debug": ["enabled"],
     ]
 
@@ -51,9 +53,19 @@ public enum ConfigFile {
         if let mode = values["hotkey.mode"], mode != "hold" {
             throw ConfigReadError("hotkey.mode must be hold")
         }
+        // The default steps aside when the hold key is itself right_option.
+        let lockName = values["hotkey.lock"] ?? (hotkeyName == "right_option" ? "none" : "right_option")
+        var lockKey: HotkeySpec?
+        if lockName != "none" {
+            guard let spec = HotkeySpec.named(lockName), lockName != hotkeyName else {
+                throw ConfigReadError("hotkey.lock must be none or a hold key other than hotkey.key")
+            }
+            lockKey = spec
+        }
         return ServiceConfig(
             speechPort: try port(values["speech.port"]),
             hotkey: hotkey,
+            lockKey: lockKey,
             debugEnabled: try flag("debug.enabled", values["debug.enabled"])
         )
     }

@@ -14,6 +14,7 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(config.hotkey, HotkeySpec.named("fn"))
         XCTAssertEqual(config.hotkey.keyCode, 0x3F)
         XCTAssertEqual(config.hotkey.modifierBit, 1 << 23)
+        XCTAssertEqual(config.lockKey, HotkeySpec.named("right_option"))
         XCTAssertFalse(config.debugEnabled)
     }
 
@@ -48,6 +49,9 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(empty.hotkey, HotkeySpec.named("fn"))
         XCTAssertThrowsError(try ConfigFile.parse("[hotkey]\nkey = \"f13\"\n"))
         XCTAssertThrowsError(try ConfigFile.parse("[speech]\nport = 80\n"))
+        XCTAssertNil(try ConfigFile.parse("[hotkey]\nlock = \"none\"\n").lockKey)
+        XCTAssertNil(try ConfigFile.parse("[hotkey]\nkey = \"right_option\"\n").lockKey)
+        XCTAssertThrowsError(try ConfigFile.parse("[hotkey]\nkey = \"right_option\"\nlock = \"right_option\"\n"))
         XCTAssertThrowsError(try ConfigFile.parse("[debug]\nenabled = \"yes\"\n"))
     }
 

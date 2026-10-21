@@ -21,6 +21,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg.cleanup_reasoning_effort, "")
         self.assertEqual(cfg.hotkey, "fn")
         self.assertEqual(cfg.hotkey_mode, "hold")
+        self.assertEqual(cfg.hotkey_lock, "right_option")
         self.assertEqual(cfg.replacements, ())
         self.assertFalse(cfg.debug_enabled)
 
@@ -99,6 +100,14 @@ class ConfigTests(unittest.TestCase):
         text = self._body().replace('key = "fn"', 'key = "f13"')
         with self.assertRaises(ConfigError):
             load_config(self._write(text))
+
+    def test_lock_key(self):
+        base = '[speech]\nmodel = "a/b"\n[cleanup]\nenabled = false\n[hotkey]\n'
+        self.assertEqual(load_config(self._write(base + 'lock = "none"\n')).hotkey_lock, "")
+        self.assertEqual(load_config(self._write(base + 'key = "right_option"\n')).hotkey_lock, "")
+        for bad in ('lock = "f13"\n', 'key = "right_option"\nlock = "right_option"\n'):
+            with self.assertRaises(ConfigError):
+                load_config(self._write(base + bad))
 
     def _body(self) -> str:
         return EXAMPLE.read_text(encoding="utf-8")
