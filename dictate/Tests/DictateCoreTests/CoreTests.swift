@@ -106,6 +106,13 @@ final class CoreTests: XCTestCase {
         XCTAssertNil(ServiceHealth.parse(Data(#"{"status":"ok"}"#.utf8)))
     }
 
+    func testDuckLowersToATenthAndRespectsTheUser() {
+        XCTAssertEqual(Duck.level(from: 0.5), 0.05, accuracy: 0.0001)
+        XCTAssertTrue(Duck.shouldRestore(current: 0.0625, ducked: 0.0625))
+        // The user turned it up while recording: leave their volume alone.
+        XCTAssertFalse(Duck.shouldRestore(current: 0.4, ducked: 0.0625))
+    }
+
     func testMenuPreviewWrapsTwoLinesThenEllipsizes() {
         XCTAssertEqual(MenuPreview.lines("Hello.", width: 10), ["Hello."])
         XCTAssertEqual(MenuPreview.lines("one two three four", width: 10), ["one two", "three four"])

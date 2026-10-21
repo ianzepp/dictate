@@ -8,6 +8,7 @@ Hold a key, talk, let go. Dictate records your voice, turns it into text with a 
 - **Lock for long dictation.** Add Right Option while holding Fn, and you can let go of both keys. See [Hotkeys](#hotkeys).
 - **Cancel.** Click the ✕ on the overlay. Nothing is pasted.
 - **Change your mind.** Letting go without saying anything pastes nothing. The overlay shows Nothing heard.
+- **Music keeps playing, quietly.** While you record, Dictate turns your Mac's output down to a tenth of its volume, so the microphone hears you and not the song, then puts it back when you let go. If you change the volume yourself mid-dictation, yours is kept.
 - **The menu-bar icon** shows the current state and the last five transcripts. Click one to copy it.
 
 ## Hotkeys
@@ -135,6 +136,8 @@ The menu-bar card says what is wrong and where to fix it. It checks the speech s
 - **Fn opens the emoji picker or Apple's dictation.** See setup step 6.
 - **The text is copied but not pasted.** Dictate needs Accessibility. Grant it, then restart the app.
 - **The permissions vanish after a rebuild.** The signing certificate is missing, and `build-app.sh` printed a warning. See setup step 3.
+- **Background music shows up in the text.** Dictate turns the output volume down while recording, but some outputs, such as HDMI displays and some USB audio devices, have no volume macOS can change. Lower the music yourself, or use headphones.
+- **The volume stayed low.** If Dictate stopped in the middle of a dictation, it puts the volume back when it restarts, within about ten seconds. If you changed the volume since, it leaves yours alone.
 - **The first dictation after a restart is slow.** Metal compiles its kernels on first use. Later ones are fast.
 - **The card says Speech service not running.** Check `stt.err.log`. A broken config is the usual cause; `launchd/install.sh` checks it and says what is wrong.
 - **The card says Speech model unavailable.** The download failed, for example with no internet connection. It retries every 30 seconds.

@@ -16,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusRow = StatusRowView()
     private let recorder = Recorder()
     private let overlay = Overlay()
+    /// Created at launch, which also repairs a volume left down by a crash.
+    private let ducker = VolumeDucker()
     private var config: ServiceConfig?
     private var globalMonitor: Any?
     private var localMonitor: Any?
@@ -182,6 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         do {
             try recorder.start()
+            ducker.duck()
             session += 1
             setSymbol("mic.fill")
             note("Listening", detail: "Let go of \(keyName) to finish", style: .listening)
@@ -230,6 +233,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The overlay's close button: stop recording or ignore the pending reply, and paste nothing.
     private func cancel() {
+        ducker.restore()
         session += 1
         locked = false
         holdPoll?.invalidate()
@@ -245,6 +249,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func finish() {
+        ducker.restore()
         locked = false
         holdPoll?.invalidate()
         holdPoll = nil
@@ -445,6 +450,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func quit() {
+        ducker.restore()
         NSApp.terminate(nil)
     }
 }
