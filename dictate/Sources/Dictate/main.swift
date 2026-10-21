@@ -177,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fail("Too short")
             return
         }
-        guard let baseURL = config?.sttBaseURL else { return }
+        guard let baseURL = config?.serviceURL else { return }
         if config?.debugEnabled == true {
             transcribeInSteps(wav: wav, baseURL: baseURL)
         } else {

@@ -11,7 +11,7 @@ from stt_service.config import ConfigError, default_config_path, load_config
 
 def default_url() -> str:
     try:
-        return load_config().stt_base_url
+        return load_config().speech_url
     except ConfigError:
         return "http://127.0.0.1:8090"
 

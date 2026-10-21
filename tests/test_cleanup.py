@@ -50,7 +50,7 @@ class CleanupTests(unittest.TestCase):
     def test_request_omits_reasoning_for_the_dedicated_model(self):
         body = cleanup_request("hello", self.cfg)
         self.assertNotIn("reasoning_effort", body)
-        self.assertEqual(body["model"], "qwen2.5-1.5b-instruct")
+        self.assertEqual(body["model"], "cleanup")
         self.assertIn("hello", body["messages"][-1]["content"])
 
     def test_llm_text_is_used(self):
@@ -109,6 +109,15 @@ class CleanupTests(unittest.TestCase):
 
         text, used = cleanup_transcript("hello", self.cfg, post=post)
         self.assertEqual(text, "hello")
+        self.assertFalse(used)
+
+    def test_disabled_cleanup_skips_the_model(self):
+        def post(url, json, timeout):
+            raise AssertionError("model should not be called")
+
+        cfg = dataclasses.replace(self.cfg, cleanup_enabled=False)
+        text, used = cleanup_transcript("hello there", cfg, post=post)
+        self.assertEqual(text, "hello there")
         self.assertFalse(used)
 
     def test_blank_transcript_skips_the_model(self):

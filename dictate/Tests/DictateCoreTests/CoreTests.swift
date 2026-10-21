@@ -10,45 +10,45 @@ final class CoreTests: XCTestCase {
             .deletingLastPathComponent()
         let text = try String(contentsOf: root.appendingPathComponent("config.example.toml"), encoding: .utf8)
         let config = try ConfigFile.parse(text)
-        XCTAssertEqual(config.sttBaseURL, "http://127.0.0.1:8090")
-        XCTAssertEqual(config.llmBaseURL, "http://127.0.0.1:8091/v1")
-        XCTAssertEqual(config.llmModel, "qwen2.5-1.5b-instruct")
-        XCTAssertEqual(config.llmReasoningEffort, "")
+        XCTAssertEqual(config.serviceURL, "http://127.0.0.1:8090")
         XCTAssertEqual(config.hotkey, HotkeySpec.named("fn"))
-        XCTAssertEqual(config.sttModel, NSHomeDirectory() + "/.local/share/dictate/models/mlx-community--whisper-large-v3-turbo-4bit")
-        XCTAssertEqual(config.replacements.count, 0)
+        XCTAssertEqual(config.hotkey.keyCode, 0x3F)
+        XCTAssertEqual(config.hotkey.modifierBit, 1 << 23)
         XCTAssertFalse(config.debugEnabled)
     }
 
-    func testReplacementsAndFn() throws {
+    func testReadsOnlyWhatTheAppUses() throws {
         let text = """
-        [stt]
-        base_url = "http://127.0.0.1:8090"
-        model = "/tmp/model"
-        language = "en"
+        [speech]
+        model = "owner/model"
+        port = 9100
 
-        [llm]
-        base_url = "http://127.0.0.1:8000/v1"
-        model = "small"
-        reasoning_effort = ""
+        [cleanup]
+        enabled = false
+        future_key = [1, 2]
 
         [hotkey]
-        key = "fn"
-        mode = "hold"
+        key = "right_option"
+
+        [debug]
+        enabled = true
 
         [replacements]
         "em el ex" = "MLX"
-        # ignored
-        quote = "say \\"hi\\""
         """
         let config = try ConfigFile.parse(text)
-        XCTAssertEqual(config.hotkey.keyCode, 0x3F)
-        XCTAssertEqual(config.hotkey.modifierBit, 1 << 23)
-        XCTAssertEqual(config.replacements.count, 2)
-        XCTAssertEqual(config.replacements[0].0, "em el ex")
-        XCTAssertEqual(config.replacements[0].1, "MLX")
-        XCTAssertEqual(config.replacements[1].1, "say \"hi\"")
-        XCTAssertEqual(config.llmReasoningEffort, "")
+        XCTAssertEqual(config.serviceURL, "http://127.0.0.1:9100")
+        XCTAssertEqual(config.hotkey, HotkeySpec.named("right_option"))
+        XCTAssertTrue(config.debugEnabled)
+    }
+
+    func testDefaultsAndBadValues() throws {
+        let empty = try ConfigFile.parse("[speech]\nmodel = \"a/b\"\n")
+        XCTAssertEqual(empty.speechPort, ConfigFile.defaultSpeechPort)
+        XCTAssertEqual(empty.hotkey, HotkeySpec.named("fn"))
+        XCTAssertThrowsError(try ConfigFile.parse("[hotkey]\nkey = \"f13\"\n"))
+        XCTAssertThrowsError(try ConfigFile.parse("[speech]\nport = 80\n"))
+        XCTAssertThrowsError(try ConfigFile.parse("[debug]\nenabled = \"yes\"\n"))
     }
 
     func testHoldToggleIgnoresOtherKeys() {

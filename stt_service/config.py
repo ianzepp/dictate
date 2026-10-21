@@ -20,15 +20,18 @@ HOTKEY_NAMES = (
 
 REASONING_EFFORTS = ("", "none", "minimal", "low", "medium", "high")
 
-_SECTIONS = {
-    "stt": ("base_url", "model", "language"),
-    "llm": ("base_url", "model", "reasoning_effort"),
+DEFAULT_SPEECH_PORT = 8090
+DEFAULT_CLEANUP_PORT = 8091
+# The name the managed llama-server answers to. Nothing outside this service sees it.
+MANAGED_CLEANUP_NAME = "cleanup"
+
+_KEYS = {
+    "speech": ("model", "language", "port"),
+    "cleanup": ("enabled", "model", "port", "url", "name", "reasoning_effort"),
     "hotkey": ("key", "mode"),
-    "replacements": None,
-}
-_OPTIONAL = {
     "debug": ("enabled",),
 }
+_KIND_NAMES = {str: "a string", int: "a number", bool: "true or false"}
 
 
 class ConfigError(Exception):
@@ -38,16 +41,29 @@ class ConfigError(Exception):
 @dataclass(frozen=True)
 class Config:
     path: Path
-    stt_base_url: str
-    stt_model: str
-    stt_language: str
-    llm_base_url: str
-    llm_model: str
-    llm_reasoning_effort: str
+    speech_model: str
+    speech_language: str
+    speech_port: int
+    cleanup_enabled: bool
+    # Set when this service runs llama-server itself: a .gguf path or a Hugging Face repo[:quant].
+    cleanup_model: str
+    cleanup_port: int
+    # The OpenAI-compatible base URL and model name the cleanup request goes to.
+    cleanup_url: str
+    cleanup_name: str
+    cleanup_reasoning_effort: str
     hotkey: str
     hotkey_mode: str
     replacements: tuple[tuple[str, str], ...]
     debug_enabled: bool = False
+
+    @property
+    def speech_url(self) -> str:
+        return f"http://127.0.0.1:{self.speech_port}"
+
+    @property
+    def cleanup_managed(self) -> bool:
+        return self.cleanup_model != ""
 
 
 def default_config_path() -> Path:
@@ -55,6 +71,11 @@ def default_config_path() -> Path:
     if override:
         return Path(override).expanduser()
     return Path.home() / ".config" / "stt-service" / "config.toml"
+
+
+def is_local_path(value: str) -> bool:
+    """A model given as a path rather than a Hugging Face name."""
+    return value.startswith(("/", "~", "."))
 
 
 def load_config(path: Path | None = None) -> Config:
@@ -73,141 +94,132 @@ def load_config(path: Path | None = None) -> Config:
         data = tomllib.loads(cfg_path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as exc:
         raise ConfigError(f"{cfg_path}: {exc}") from exc
-    if not isinstance(data, dict):
-        raise ConfigError(f"{cfg_path}: expected a table")
-    _require_sections(cfg_path, data)
-    stt = _section(cfg_path, data, "stt")
-    llm = _section(cfg_path, data, "llm")
-    hotkey = _section(cfg_path, data, "hotkey")
-    replacements = _replacements(cfg_path, data.get("replacements", {}))
-    debug_enabled = _debug_enabled(cfg_path, data.get("debug"))
-    return Config(
-        path=cfg_path,
-        stt_base_url=_local_url(cfg_path, "stt.base_url", _string(cfg_path, "stt.base_url", stt["base_url"])),
-        stt_model=_model_path(cfg_path, _string(cfg_path, "stt.model", stt["model"])),
-        stt_language=_language(cfg_path, _string(cfg_path, "stt.language", stt["language"])),
-        llm_base_url=_local_url(cfg_path, "llm.base_url", _string(cfg_path, "llm.base_url", llm["base_url"])),
-        llm_model=_nonempty(cfg_path, "llm.model", _string(cfg_path, "llm.model", llm["model"])),
-        llm_reasoning_effort=_reasoning(cfg_path, _string(cfg_path, "llm.reasoning_effort", llm["reasoning_effort"])),
-        hotkey=_hotkey(cfg_path, _string(cfg_path, "hotkey.key", hotkey["key"])),
-        hotkey_mode=_mode(cfg_path, _string(cfg_path, "hotkey.mode", hotkey["mode"])),
-        replacements=replacements,
-        debug_enabled=debug_enabled,
-    )
+    return _Reader(cfg_path, data).config()
 
 
-def _require_sections(path: Path, data: dict) -> None:
-    unknown = set(data) - set(_SECTIONS) - set(_OPTIONAL)
-    if unknown:
-        names = ", ".join(sorted(unknown))
-        raise ConfigError(f"{path}: unknown section: {names}")
-    missing = [name for name in _SECTIONS if name not in data]
-    if missing:
-        names = ", ".join(missing)
-        raise ConfigError(f"{path}: missing section: {names}")
+class _Reader:
+    """Every key is optional except speech.model. Unknown keys are errors, so typos surface."""
 
+    def __init__(self, path: Path, data: dict) -> None:
+        self.path = path
+        unknown = set(data) - set(_KEYS) - {"replacements"}
+        if unknown:
+            raise self.error(f"unknown section: {', '.join(sorted(unknown))}")
+        self.tables = {name: self.table(data, name) for name in _KEYS}
+        self.replacements = self.pairs(data.get("replacements", {}))
 
-def _section(path: Path, data: dict, name: str) -> dict:
-    table = data[name]
-    if not isinstance(table, dict):
-        raise ConfigError(f"{path}: [{name}] must be a table")
-    expected = _SECTIONS[name]
-    assert expected is not None
-    unknown = set(table) - set(expected)
-    if unknown:
-        names = ", ".join(sorted(unknown))
-        raise ConfigError(f"{path}: unknown key in [{name}]: {names}")
-    missing = [key for key in expected if key not in table]
-    if missing:
-        names = ", ".join(missing)
-        raise ConfigError(f"{path}: [{name}] missing: {names}")
-    return table
+    def error(self, message: str) -> ConfigError:
+        return ConfigError(f"{self.path}: {message}")
 
+    def table(self, data: dict, name: str) -> dict:
+        table = data.get(name, {})
+        if not isinstance(table, dict):
+            raise self.error(f"[{name}] must be a table")
+        unknown = set(table) - set(_KEYS[name])
+        if unknown:
+            raise self.error(f"unknown key in [{name}]: {', '.join(sorted(unknown))}")
+        return table
 
-def _debug_enabled(path: Path, table: object) -> bool:
-    if table is None:
-        return False
-    if not isinstance(table, dict):
-        raise ConfigError(f"{path}: [debug] must be a table")
-    unknown = set(table) - set(_OPTIONAL["debug"])
-    if unknown:
-        names = ", ".join(sorted(unknown))
-        raise ConfigError(f"{path}: unknown key in [debug]: {names}")
-    if "enabled" not in table:
-        raise ConfigError(f"{path}: [debug] missing: enabled")
-    value = table["enabled"]
-    if isinstance(value, bool):
+    def get(self, section: str, key: str, kind: type, default):
+        value = self.tables[section].get(key, default)
+        # bool is an int in Python, so `port = true` would otherwise pass.
+        if not isinstance(value, kind) or (kind is int and isinstance(value, bool)):
+            raise self.error(f"{section}.{key} must be {_KIND_NAMES[kind]}")
         return value
-    if isinstance(value, str) and value in ("true", "false"):
-        return value == "true"
-    raise ConfigError(f"{path}: debug.enabled must be true or false")
 
+    def config(self) -> Config:
+        if "model" not in self.tables["speech"]:
+            raise self.error("[speech] missing: model")
+        speech_model = self.model("speech.model", self.get("speech", "model", str, ""))
+        language = self.get("speech", "language", str, "en")
+        if language == "" or len(language) > 8 or any(ch.isspace() for ch in language):
+            raise self.error("speech.language must be a short code such as en")
+        speech_port = self.port("speech.port", self.get("speech", "port", int, DEFAULT_SPEECH_PORT))
 
-def _replacements(path: Path, table: object) -> tuple[tuple[str, str], ...]:
-    if not isinstance(table, dict):
-        raise ConfigError(f"{path}: [replacements] must be a table")
-    pairs: list[tuple[str, str]] = []
-    for src, dst in table.items():
-        if not isinstance(src, str) or src == "":
-            raise ConfigError(f"{path}: replacement key must be a non-empty string")
-        if not isinstance(dst, str):
-            raise ConfigError(f"{path}: replacement for {src!r} must be a string")
-        pairs.append((src, dst))
-    return tuple(pairs)
+        enabled = self.get("cleanup", "enabled", bool, True)
+        model = self.get("cleanup", "model", str, "").strip()
+        cleanup_port = self.port("cleanup.port", self.get("cleanup", "port", int, DEFAULT_CLEANUP_PORT))
+        url = self.get("cleanup", "url", str, "").strip()
+        name = self.get("cleanup", "name", str, "").strip()
+        effort = self.get("cleanup", "reasoning_effort", str, "")
+        if effort not in REASONING_EFFORTS:
+            allowed = ", ".join(repr(item) if item else '""' for item in REASONING_EFFORTS)
+            raise self.error(f"cleanup.reasoning_effort must be one of {allowed}")
+        if not enabled:
+            model = url = name = ""
+        elif model and (url or name):
+            raise self.error("[cleanup] takes either model, or url and name, not both")
+        elif model:
+            model = self.model("cleanup.model", model)
+            if cleanup_port == speech_port:
+                raise self.error("speech.port and cleanup.port must differ")
+            url = f"http://127.0.0.1:{cleanup_port}/v1"
+            name = MANAGED_CLEANUP_NAME
+        elif url and name:
+            url = self.local_url("cleanup.url", url)
+        else:
+            raise self.error("[cleanup] needs model, or url and name, or enabled = false")
 
+        hotkey = self.get("hotkey", "key", str, "fn")
+        if hotkey not in HOTKEY_NAMES:
+            raise self.error(f"hotkey.key must be one of {', '.join(HOTKEY_NAMES)}")
+        mode = self.get("hotkey", "mode", str, "hold")
+        if mode != "hold":
+            raise self.error("hotkey.mode must be hold")
 
-def _string(path: Path, label: str, value: object) -> str:
-    if not isinstance(value, str):
-        raise ConfigError(f"{path}: {label} must be a string")
-    return value
+        return Config(
+            path=self.path,
+            speech_model=speech_model,
+            speech_language=language,
+            speech_port=speech_port,
+            cleanup_enabled=enabled,
+            cleanup_model=model,
+            cleanup_port=cleanup_port,
+            cleanup_url=url,
+            cleanup_name=name,
+            cleanup_reasoning_effort=effort,
+            hotkey=hotkey,
+            hotkey_mode=mode,
+            replacements=self.replacements,
+            debug_enabled=self.get("debug", "enabled", bool, False),
+        )
 
+    def model(self, label: str, value: str) -> str:
+        value = value.strip()
+        if value == "":
+            raise self.error(f"{label} is empty")
+        if is_local_path(value):
+            path = Path(value).expanduser()
+            if not path.is_absolute():
+                raise self.error(f"{label} path must be absolute or start with ~/")
+            return str(path)
+        repo = value.split(":", 1)[0]
+        if repo.count("/") != 1 or repo.startswith("/") or repo.endswith("/"):
+            raise self.error(f"{label} must be a path or a Hugging Face name such as owner/repo")
+        return value
 
-def _nonempty(path: Path, label: str, value: str) -> str:
-    if value.strip() == "":
-        raise ConfigError(f"{path}: {label} is empty")
-    return value
+    def port(self, label: str, value: int) -> int:
+        if not 1024 <= value <= 65535:
+            raise self.error(f"{label} must be between 1024 and 65535")
+        return value
 
+    def local_url(self, label: str, value: str) -> str:
+        value = value.rstrip("/")
+        parts = urlsplit(value)
+        if parts.scheme != "http" or parts.hostname not in ("127.0.0.1", "localhost") or parts.port is None:
+            raise self.error(f"{label} must be http://127.0.0.1:<port>/... or http://localhost:<port>/...")
+        if parts.username or parts.password:
+            raise self.error(f"{label} must not carry credentials")
+        return value
 
-def _local_url(path: Path, label: str, value: str) -> str:
-    value = _nonempty(path, label, value).rstrip("/")
-    parts = urlsplit(value)
-    if parts.scheme != "http" or parts.hostname not in ("127.0.0.1", "localhost") or parts.port is None:
-        raise ConfigError(f"{path}: {label} must be http://127.0.0.1:<port> or http://localhost:<port>")
-    if parts.username or parts.password:
-        raise ConfigError(f"{path}: {label} must not carry credentials")
-    return value
-
-
-def _model_path(path: Path, value: str) -> str:
-    value = _nonempty(path, "stt.model", value)
-    model = Path(value).expanduser()
-    if not model.is_absolute():
-        raise ConfigError(f"{path}: stt.model must be an absolute path or start with ~/")
-    return str(model)
-
-
-def _language(path: Path, value: str) -> str:
-    value = _nonempty(path, "stt.language", value)
-    if len(value) > 8 or any(ch.isspace() for ch in value):
-        raise ConfigError(f"{path}: stt.language must be a short code such as en")
-    return value
-
-
-def _reasoning(path: Path, value: str) -> str:
-    if value not in REASONING_EFFORTS:
-        allowed = ", ".join(repr(item) if item else '""' for item in REASONING_EFFORTS)
-        raise ConfigError(f"{path}: llm.reasoning_effort must be one of {allowed}")
-    return value
-
-
-def _hotkey(path: Path, value: str) -> str:
-    if value not in HOTKEY_NAMES:
-        names = ", ".join(HOTKEY_NAMES)
-        raise ConfigError(f"{path}: hotkey.key must be one of {names}")
-    return value
-
-
-def _mode(path: Path, value: str) -> str:
-    if value != "hold":
-        raise ConfigError(f"{path}: hotkey.mode must be hold")
-    return value
+    def pairs(self, table: object) -> tuple[tuple[str, str], ...]:
+        if not isinstance(table, dict):
+            raise self.error("[replacements] must be a table")
+        pairs: list[tuple[str, str]] = []
+        for src, dst in table.items():
+            if not isinstance(src, str) or src == "":
+                raise self.error("replacement key must be a non-empty string")
+            if not isinstance(dst, str):
+                raise self.error(f"replacement for {src!r} must be a string")
+            pairs.append((src, dst))
+        return tuple(pairs)

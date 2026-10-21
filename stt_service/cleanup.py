@@ -80,13 +80,13 @@ def cleanup_messages(transcript: str, pairs: tuple[tuple[str, str], ...] | list[
 
 def cleanup_request(transcript: str, cfg: Config) -> dict:
     body = {
-        "model": cfg.llm_model,
+        "model": cfg.cleanup_name,
         "messages": cleanup_messages(transcript, cfg.replacements),
         "max_tokens": 1024,
         "temperature": 0.2,
     }
-    if cfg.llm_reasoning_effort:
-        body["reasoning_effort"] = cfg.llm_reasoning_effort
+    if cfg.cleanup_reasoning_effort:
+        body["reasoning_effort"] = cfg.cleanup_reasoning_effort
     return body
 
 
@@ -136,11 +136,13 @@ def cleanup_transcript(transcript: str, cfg: Config, post: Post | None = None) -
     """
     if transcript.strip() == "":
         return "", False
+    if not cfg.cleanup_enabled:
+        return transcript, False
     if post is None:
         import requests
 
         post = requests.post
-    url = cfg.llm_base_url.rstrip("/") + "/chat/completions"
+    url = cfg.cleanup_url + "/chat/completions"
     try:
         response = post(url, json=cleanup_request(transcript, cfg), timeout=60)
         response.raise_for_status()

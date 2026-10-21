@@ -1,29 +1,14 @@
 import Foundation
 
-/// Subset reader for the shared dictation config.
-/// Double-quoted strings, full-line comments, and `#` outside strings.
+/// What the menu-bar app needs from the shared config: where the speech service
+/// listens, the hold key, and the debug switch. The speech service validates the
+/// rest, so sections and keys this reader does not use are skipped unread.
 public struct ServiceConfig: Equatable {
-    public var sttBaseURL: String
-    public var sttModel: String
-    public var sttLanguage: String
-    public var llmBaseURL: String
-    public var llmModel: String
-    public var llmReasoningEffort: String
+    public var speechPort: Int
     public var hotkey: HotkeySpec
-    public var replacements: [(String, String)]
     public var debugEnabled: Bool
 
-    public static func == (lhs: ServiceConfig, rhs: ServiceConfig) -> Bool {
-        lhs.sttBaseURL == rhs.sttBaseURL
-            && lhs.sttModel == rhs.sttModel
-            && lhs.sttLanguage == rhs.sttLanguage
-            && lhs.llmBaseURL == rhs.llmBaseURL
-            && lhs.llmModel == rhs.llmModel
-            && lhs.llmReasoningEffort == rhs.llmReasoningEffort
-            && lhs.hotkey == rhs.hotkey
-            && lhs.replacements.elementsEqual(rhs.replacements, by: ==)
-            && lhs.debugEnabled == rhs.debugEnabled
-    }
+    public var serviceURL: String { "http://127.0.0.1:\(speechPort)" }
 }
 
 public struct ConfigReadError: Error, Equatable, CustomStringConvertible {
@@ -32,11 +17,17 @@ public struct ConfigReadError: Error, Equatable, CustomStringConvertible {
 }
 
 public enum ConfigFile {
+    /// The same default as the speech service.
+    public static let defaultSpeechPort = 8090
+    private static let read: [String: Set<String>] = [
+        "speech": ["port"],
+        "hotkey": ["key", "mode"],
+        "debug": ["enabled"],
+    ]
+
     public static func parse(_ text: String) throws -> ServiceConfig {
-        var sections: [String: [String: String]] = [:]
-        var replacementPairs: [(String, String)] = []
+        var values: [String: String] = [:]
         var current: String?
-        var sawReplacements = false
 
         for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
             let line = String(rawLine).trimmingCharacters(in: .whitespaces)
@@ -45,124 +36,42 @@ public enum ConfigFile {
                 guard line.hasSuffix("]"), line.count > 2 else {
                     throw ConfigReadError("bad section header: \(line)")
                 }
-                let name = String(line.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
-                if sections[name] != nil || (name == "replacements" && sawReplacements) {
-                    throw ConfigReadError("duplicate section [\(name)]")
-                }
-                current = name
-                if name == "replacements" {
-                    sawReplacements = true
-                } else {
-                    sections[name] = [:]
-                }
+                current = String(line.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
                 continue
             }
-            guard let section = current else {
-                throw ConfigReadError("key outside a section: \(line)")
-            }
+            guard let section = current, let keys = read[section] else { continue }
             let (key, value) = try splitAssignment(line)
-            if section == "replacements" {
-                if key.isEmpty { throw ConfigReadError("replacement key is empty") }
-                replacementPairs.append((key, value))
-            } else {
-                var table = sections[section] ?? [:]
-                if table[key] != nil { throw ConfigReadError("duplicate key \(section).\(key)") }
-                table[key] = value
-                sections[section] = table
-            }
+            if keys.contains(key) { values["\(section).\(key)"] = value }
         }
 
-        for name in sections.keys where !["stt", "llm", "hotkey", "debug"].contains(name) {
-            throw ConfigReadError("unknown section: \(name)")
-        }
-
-        let stt = try require("stt", in: sections)
-        let llm = try require("llm", in: sections)
-        let hotkeyTable = try require("hotkey", in: sections)
-        if !sawReplacements { throw ConfigReadError("missing section: replacements") }
-
-        try exactKeys("stt", stt, ["base_url", "language", "model"])
-        try exactKeys("llm", llm, ["base_url", "model", "reasoning_effort"])
-        try exactKeys("hotkey", hotkeyTable, ["key", "mode"])
-        if let debug = sections["debug"] {
-            try exactKeys("debug", debug, ["enabled"])
-        }
-
-        let hotkeyName = try field("hotkey.key", hotkeyTable, "key")
+        let hotkeyName = values["hotkey.key"] ?? "fn"
         guard let hotkey = HotkeySpec.named(hotkeyName) else {
             throw ConfigReadError("hotkey.key must be a known hold key, got \(hotkeyName)")
         }
-        let mode = try field("hotkey.mode", hotkeyTable, "mode")
-        if mode != "hold" { throw ConfigReadError("hotkey.mode must be hold") }
-
-        let effort = try field("llm.reasoning_effort", llm, "reasoning_effort")
-        let allowedEfforts = ["", "none", "minimal", "low", "medium", "high"]
-        if !allowedEfforts.contains(effort) {
-            throw ConfigReadError("llm.reasoning_effort is not a known value")
+        if let mode = values["hotkey.mode"], mode != "hold" {
+            throw ConfigReadError("hotkey.mode must be hold")
         }
-
         return ServiceConfig(
-            sttBaseURL: try localURL("stt.base_url", try field("stt.base_url", stt, "base_url")),
-            sttModel: try absolutePath(try field("stt.model", stt, "model")),
-            sttLanguage: try language(try field("stt.language", stt, "language")),
-            llmBaseURL: try localURL("llm.base_url", try field("llm.base_url", llm, "base_url")),
-            llmModel: try nonempty("llm.model", try field("llm.model", llm, "model")),
-            llmReasoningEffort: effort,
+            speechPort: try port(values["speech.port"]),
             hotkey: hotkey,
-            replacements: replacementPairs,
-            debugEnabled: try debugFlag(sections["debug"])
+            debugEnabled: try flag("debug.enabled", values["debug.enabled"])
         )
     }
 
-    private static func require(_ name: String, in sections: [String: [String: String]]) throws -> [String: String] {
-        guard let table = sections[name] else { throw ConfigReadError("missing section: \(name)") }
-        return table
-    }
-
-    private static func exactKeys(_ section: String, _ table: [String: String], _ allowed: [String]) throws {
-        let extra = Set(table.keys).subtracting(allowed)
-        if let name = extra.sorted().first {
-            throw ConfigReadError("unknown key in [\(section)]: \(name)")
+    private static func port(_ value: String?) throws -> Int {
+        guard let value else { return defaultSpeechPort }
+        guard let port = Int(value), (1024...65535).contains(port) else {
+            throw ConfigReadError("speech.port must be a number between 1024 and 65535")
         }
+        return port
     }
 
-    private static func field(_ label: String, _ table: [String: String], _ key: String) throws -> String {
-        guard let value = table[key] else { throw ConfigReadError("\(label) is missing") }
-        return value
-    }
-
-    private static func nonempty(_ label: String, _ value: String) throws -> String {
-        if value.trimmingCharacters(in: .whitespaces).isEmpty {
-            throw ConfigReadError("\(label) is empty")
+    private static func flag(_ label: String, _ value: String?) throws -> Bool {
+        switch value {
+        case nil, "false": return false
+        case "true": return true
+        default: throw ConfigReadError("\(label) must be true or false")
         }
-        return value
-    }
-
-    private static func absolutePath(_ value: String) throws -> String {
-        let path = (try nonempty("stt.model", value) as NSString).expandingTildeInPath
-        if !path.hasPrefix("/") { throw ConfigReadError("stt.model must be an absolute path or start with ~/") }
-        return path
-    }
-
-    private static func language(_ value: String) throws -> String {
-        let code = try nonempty("stt.language", value)
-        if code.count > 8 || code.contains(where: { $0.isWhitespace }) {
-            throw ConfigReadError("stt.language must be a short code such as en")
-        }
-        return code
-    }
-
-    private static func localURL(_ label: String, _ value: String) throws -> String {
-        let trimmed = try nonempty(label, value).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let parts = URL(string: trimmed), parts.scheme == "http", let host = parts.host, let port = parts.port else {
-            throw ConfigReadError("\(label) must be http://127.0.0.1:<port> or http://localhost:<port>")
-        }
-        if host != "127.0.0.1" && host != "localhost" {
-            throw ConfigReadError("\(label) must stay on this machine")
-        }
-        if parts.user != nil { throw ConfigReadError("\(label) must not carry credentials") }
-        _ = port
-        return trimmed
     }
 
     private static func splitAssignment(_ line: String) throws -> (String, String) {
@@ -235,19 +144,12 @@ public enum ConfigFile {
         return trimmed
     }
 
-    private static func debugFlag(_ table: [String: String]?) throws -> Bool {
-        guard let table else { return false }
-        guard let value = table["enabled"] else { throw ConfigReadError("[debug] missing: enabled") }
-        if value == "true" { return true }
-        if value == "false" { return false }
-        throw ConfigReadError("debug.enabled must be true or false")
-    }
-
     private static func parseValue(_ text: String) throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         if trimmed == "true" || trimmed == "false" { return trimmed }
+        if !trimmed.isEmpty, trimmed.allSatisfy(\.isNumber) { return trimmed }
         guard trimmed.hasPrefix("\"") else {
-            throw ConfigReadError("values must be double-quoted strings")
+            throw ConfigReadError("values must be quoted strings, numbers, or true/false")
         }
         var index = trimmed.startIndex
         let value = try parseQuoted(trimmed, at: &index)

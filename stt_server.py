@@ -1,7 +1,8 @@
 """Local speech service.
 
 Loads the Whisper model before it listens. Each utterance is recognized,
-literal keyword replacements are applied, then the cleanup model on :8091 fixes grammar.
+literal keyword replacements are applied, then the cleanup model fixes grammar.
+When the config names a cleanup model, this service runs llama-server for it.
 Replacements are reread from the config on every request.
 """
 
@@ -14,7 +15,6 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -22,6 +22,8 @@ from pydantic import BaseModel
 
 from stt_service.cleanup import apply_replacements, cleanup_transcript
 from stt_service.config import Config, ConfigError, load_config
+from stt_service.llama import ManagedServer, find_server, server_args
+from stt_service.models import speech_model_dir
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,6 +35,7 @@ log = logging.getLogger("stt")
 app = FastAPI(title="Local STT Service", version="0.2.0")
 
 _model = None
+_model_name = ""
 _model_path = ""
 _language = "en"
 _infer_lock = threading.Lock()
@@ -53,28 +56,26 @@ def _live_config() -> Config:
                 raise
             log.warning("config reload failed (%s); using the last good file", exc)
             return _last_good
-        if _model_path and cfg.stt_model != _model_path:
-            log.warning("stt.model changed to %s; restart the service to load it", cfg.stt_model)
+        if _model_name and cfg.speech_model != _model_name:
+            log.warning("speech.model changed to %s; restart the service to load it", cfg.speech_model)
         _last_good = cfg
         return cfg
 
 
 def preload(cfg: Config) -> None:
     """Load weights before the port opens. The first utterance still compiles Metal kernels."""
-    global _model, _model_path, _language, _last_good
-    model_path = Path(cfg.stt_model)
-    if not model_path.is_dir():
-        raise SystemExit(
-            f"STT model not found: {model_path}\n"
-            "Download it with:\n"
-            "  python download_model.py mlx-community/whisper-large-v3-turbo-4bit"
-        )
-    log.info("loading STT model %s", model_path)
+    global _model, _model_name, _model_path, _language, _last_good
+    try:
+        model_path = speech_model_dir(cfg.speech_model)
+    except Exception as exc:
+        raise SystemExit(f"speech model unavailable: {exc}") from exc
+    log.info("loading speech model %s", model_path)
     from mlx_audio.stt import load
 
     _model = load(str(model_path))
+    _model_name = cfg.speech_model
     _model_path = str(model_path)
-    _language = cfg.stt_language
+    _language = cfg.speech_language
     _last_good = cfg
     log.info("STT model loaded")
 
@@ -112,8 +113,8 @@ def health():
         "status": "ok",
         "stt_model_loaded": _model is not None,
         "stt_model": _model_path,
-        "llm_base_url": cfg.llm_base_url if cfg else "",
-        "llm_model": cfg.llm_model if cfg else "",
+        "cleanup_url": cfg.cleanup_url if cfg else "",
+        "cleanup_model": (cfg.cleanup_model or cfg.cleanup_name) if cfg else "",
     }
 
 
@@ -174,7 +175,7 @@ async def cleanup(body: CleanupBody):
         "cleaned_transcript": cleaned,
         "llm_seconds": round(llm_seconds, 2),
         "llm_used": llm_used,
-        "llm_model": cfg.llm_model,
+        "llm_model": cfg.cleanup_name,
     }
 
 
@@ -201,7 +202,7 @@ async def transcribe(audio_file: UploadFile = File(...)):
         "llm_seconds": round(llm_seconds, 2),
         "llm_used": llm_used,
         "model": _model_path,
-        "llm_model": cfg.llm_model,
+        "llm_model": cfg.cleanup_name,
     }
 
 
@@ -216,10 +217,21 @@ def main() -> None:
     if args.check:
         print(f"config ok: {cfg.path}")
         return
-    preload(cfg)
-    port = urlsplit(cfg.stt_base_url).port or 8090
-    log.info("listening on http://127.0.0.1:%d", port)
-    uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+    cleanup = None
+    if cfg.cleanup_managed:
+        try:
+            cleanup = ManagedServer(server_args(find_server(), cfg))
+        except FileNotFoundError as exc:
+            raise SystemExit(str(exc)) from exc
+        # Start it first: a first-run download or load overlaps the speech model load.
+        cleanup.start()
+    try:
+        preload(cfg)
+        log.info("listening on %s", cfg.speech_url)
+        uvicorn.run(app, host="127.0.0.1", port=cfg.speech_port, log_level="info")
+    finally:
+        if cleanup:
+            cleanup.stop()
 
 
 if __name__ == "__main__":
