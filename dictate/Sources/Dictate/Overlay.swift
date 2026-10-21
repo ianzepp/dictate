@@ -90,7 +90,8 @@ final class Overlay {
 
     func done(_ text: String) {
         show(symbol: "checkmark.circle.fill", tint: .systemGreen, text: text)
-        hide(after: 0.8)
+        // The paste has already happened; a longer hold reads as the app being stuck.
+        hide(after: 0.4)
     }
 
     /// A neutral outcome, such as a hold with no speech in it.
