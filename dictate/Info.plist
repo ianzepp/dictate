@@ -7,7 +7,7 @@
     <key>CFBundleExecutable</key>
     <string>Dictate</string>
     <key>CFBundleIdentifier</key>
-    <string>com.ianzepp.stt.dictate</string>
+    <string>com.ianzepp.dictate</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>

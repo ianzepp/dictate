@@ -16,9 +16,9 @@ Two cleanups happen between your voice and the paste. Your own `[replacements]` 
 
 | Part | Port | What it runs | LaunchAgent |
 | --- | --- | --- | --- |
-| Speech service | 8090 | Whisper large-v3 turbo on MLX (`stt_server.py`) | `com.ianzepp.stt` |
+| Speech service | 8090 | Whisper large-v3 turbo on MLX (`stt_server.py`) | `com.ianzepp.dictate.speech` |
 | Cleanup model | 8091 | Qwen2.5 1.5B Instruct on llama.cpp, started and restarted by the speech service | |
-| Menu-bar app | | `Dictate.app`: the hotkey, the overlay, and the paste | `com.ianzepp.stt.dictate` |
+| Menu-bar app | | `Dictate.app`: the hotkey, the overlay, and the paste | `com.ianzepp.dictate` |
 
 Both LaunchAgents start at login and restart if they stop.
 
@@ -44,8 +44,8 @@ Clone this repository, then run these from its root.
 2. Copy the config. The defaults work as they are.
 
    ```bash
-   mkdir -p ~/.config/stt-service
-   cp config.example.toml ~/.config/stt-service/config.toml
+   mkdir -p ~/.config/dictate
+   cp config.example.toml ~/.config/dictate/config.toml
    ```
 
 3. Make a signing certificate, once. macOS ties the Microphone, Input Monitoring, and Accessibility permissions to the app's signature. Without a stable certificate, every rebuild looks like a new app and you have to grant them again.
@@ -66,14 +66,14 @@ Clone this repository, then run these from its root.
 5. Grant permissions. macOS asks for Microphone access on first use. Add Dictate under System Settings > Privacy & Security > Input Monitoring, and again under Accessibility. Then restart the app:
 
    ```bash
-   launchctl kickstart -k gui/$(id -u)/com.ianzepp.stt.dictate
+   launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate
    ```
 
 6. Free up the Fn key. In System Settings > Keyboard, set "Press 🌐 key to" to Do Nothing. Otherwise Fn also opens the emoji picker or Apple's dictation.
 
 ## Config
 
-`~/.config/stt-service/config.toml`. The speech service and the menu-bar app both read it. `config.example.toml` explains every setting.
+`~/.config/dictate/config.toml`. The speech service and the menu-bar app both read it. `config.example.toml` explains every setting.
 
 - `[speech] model` and `[cleanup] model` take a Hugging Face name, downloaded on first start, or a path to files you already have.
 - `[cleanup]` can instead point at a model server you already run, such as LM Studio or Ollama, with `url` and `name`. `enabled = false` skips cleanup.
@@ -84,8 +84,8 @@ Clone this repository, then run these from its root.
 Everything except replacements applies after a restart:
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.ianzepp.stt           # speech and cleanup models
-launchctl kickstart -k gui/$(id -u)/com.ianzepp.stt.dictate   # hotkey, lock key, debug
+launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate.speech   # speech and cleanup models
+launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate          # hotkey, lock key, debug
 ```
 
 ## Troubleshooting
@@ -113,12 +113,12 @@ launchd/install.sh
 ## Uninstalling
 
 ```bash
-launchctl bootout gui/$(id -u)/com.ianzepp.stt
-launchctl bootout gui/$(id -u)/com.ianzepp.stt.dictate
-rm ~/Library/LaunchAgents/com.ianzepp.stt.plist ~/Library/LaunchAgents/com.ianzepp.stt.dictate.plist
+launchctl bootout gui/$(id -u)/com.ianzepp.dictate.speech
+launchctl bootout gui/$(id -u)/com.ianzepp.dictate
+rm ~/Library/LaunchAgents/com.ianzepp.dictate.speech.plist ~/Library/LaunchAgents/com.ianzepp.dictate.plist
 ```
 
-Then delete the speech model in `~/.local/share/dictate`, the cleanup model in `~/.cache/huggingface/hub` (its folder starts with `models--bartowski--Qwen2.5`), the logs in `~/Library/Logs/Dictate`, and the config in `~/.config/stt-service`.
+Then delete the speech model in `~/.local/share/dictate`, the cleanup model in `~/.cache/huggingface/hub` (its folder starts with `models--bartowski--Qwen2.5`), the logs in `~/Library/Logs/Dictate`, and the config in `~/.config/dictate`.
 
 ## Development
 

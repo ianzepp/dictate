@@ -12,7 +12,7 @@ cp Info.plist "$APP/Contents/Info.plist"
 # Accessibility grant. A stable local certificate keeps the approval.
 SIGN_ID="Dictate Local Code Sign"
 if security find-identity -v -p codesigning | grep -q "$SIGN_ID"; then
-  codesign --force --sign "$SIGN_ID" --identifier com.ianzepp.stt.dictate "$APP"
+  codesign --force --sign "$SIGN_ID" --identifier com.ianzepp.dictate "$APP"
 else
   echo "warning: $SIGN_ID is missing; Accessibility will not stick" >&2
   codesign --force --sign - "$APP"

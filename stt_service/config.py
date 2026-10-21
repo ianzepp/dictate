@@ -69,10 +69,10 @@ class Config:
 
 
 def default_config_path() -> Path:
-    override = os.environ.get("STT_CONFIG")
+    override = os.environ.get("DICTATE_CONFIG")
     if override:
         return Path(override).expanduser()
-    return Path.home() / ".config" / "stt-service" / "config.toml"
+    return Path.home() / ".config" / "dictate" / "config.toml"
 
 
 def is_local_path(value: str) -> bool:
@@ -90,7 +90,7 @@ def load_config(path: Path | None = None) -> Config:
     if not cfg_path.is_file():
         raise ConfigError(
             f"config not found: {cfg_path}\n"
-            "Copy config.example.toml to ~/.config/stt-service/config.toml"
+            "Copy config.example.toml to ~/.config/dictate/config.toml"
         )
     try:
         data = tomllib.loads(cfg_path.read_text(encoding="utf-8"))

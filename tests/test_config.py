@@ -88,7 +88,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_missing_file(self):
         with self.assertRaises(ConfigError):
-            load_config(Path("/tmp/stt-service-does-not-exist.toml"))
+            load_config(Path("/tmp/dictate-does-not-exist.toml"))
 
     def test_unknown_key(self):
         text = self._body().replace('language = "en"', 'language = "en"\nextra = "no"')

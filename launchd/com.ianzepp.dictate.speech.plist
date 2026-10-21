@@ -3,27 +3,32 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.ianzepp.stt.dictate</string>
+    <string>com.ianzepp.dictate.speech</string>
     <key>ProgramArguments</key>
     <array>
-        <string>__ROOT__/dictate/dist/Dictate.app/Contents/MacOS/Dictate</string>
+        <string>__PYTHON__</string>
+        <string>__ROOT__/stt_server.py</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
-        <key>STT_CONFIG</key>
-        <string>__HOME__/.config/stt-service/config.toml</string>
+        <key>DICTATE_CONFIG</key>
+        <string>__HOME__/.config/dictate/config.toml</string>
+        <key>LLAMA_SERVER</key>
+        <string>__LLAMA_SERVER__</string>
     </dict>
+    <key>WorkingDirectory</key>
+    <string>__ROOT__</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>ThrottleInterval</key>
-    <integer>10</integer>
+    <integer>30</integer>
     <key>LimitLoadToSessionType</key>
     <string>Aqua</string>
     <key>StandardOutPath</key>
-    <string>__HOME__/Library/Logs/Dictate/dictate.out.log</string>
+    <string>__HOME__/Library/Logs/Dictate/stt.out.log</string>
     <key>StandardErrorPath</key>
-    <string>__HOME__/Library/Logs/Dictate/dictate.err.log</string>
+    <string>__HOME__/Library/Logs/Dictate/stt.err.log</string>
 </dict>
 </plist>

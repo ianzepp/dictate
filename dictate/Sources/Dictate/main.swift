@@ -106,8 +106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func loadConfig() {
-        let path = ProcessInfo.processInfo.environment["STT_CONFIG"]
-            ?? (NSHomeDirectory() as NSString).appendingPathComponent(".config/stt-service/config.toml")
+        let path = ProcessInfo.processInfo.environment["DICTATE_CONFIG"]
+            ?? (NSHomeDirectory() as NSString).appendingPathComponent(".config/dictate/config.toml")
         do {
             let text = try String(contentsOfFile: path, encoding: .utf8)
             config = try ConfigFile.parse(text)

@@ -10,13 +10,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="${PYTHON:-$ROOT/.venv/bin/python}"
 LLAMA_SERVER="${LLAMA_SERVER:-$(command -v llama-server || true)}"
 APP="$ROOT/dictate/dist/Dictate.app"
-CONFIG="$HOME/.config/stt-service/config.toml"
+CONFIG="$HOME/.config/dictate/config.toml"
 
 fail() { echo "install.sh: $*" >&2; exit 1; }
 [ -x "$PYTHON" ] || fail "no Python at $PYTHON; create the venv or set PYTHON"
 [ -d "$APP" ] || fail "no app at $APP; run dictate/scripts/build-app.sh first"
 [ -f "$CONFIG" ] || fail "no config; copy config.example.toml to $CONFIG"
-STT_CONFIG="$CONFIG" "$PYTHON" "$ROOT/stt_server.py" --check || fail "fix the config above, then run this again"
+DICTATE_CONFIG="$CONFIG" "$PYTHON" "$ROOT/stt_server.py" --check || fail "fix the config above, then run this again"
 if [ -z "$LLAMA_SERVER" ]; then
     echo "install.sh: llama-server not found. Dictation works, but without cleanup until you run: brew install llama.cpp" >&2
 fi
@@ -34,14 +34,7 @@ stop() {
     done
 }
 
-# The speech service runs the cleanup model now; remove the old separate job.
-if [ -f "$DEST/com.ianzepp.stt.2pass.plist" ]; then
-    stop com.ianzepp.stt.2pass
-    rm "$DEST/com.ianzepp.stt.2pass.plist"
-    echo "removed com.ianzepp.stt.2pass"
-fi
-
-for label in com.ianzepp.stt com.ianzepp.stt.dictate; do
+for label in com.ianzepp.dictate.speech com.ianzepp.dictate; do
     sed -e "s|__ROOT__|$ROOT|g" \
         -e "s|__HOME__|$HOME|g" \
         -e "s|__PYTHON__|$PYTHON|g" \
