@@ -47,7 +47,7 @@ def ensure_processor(local_dir: Path, fetch=None) -> list[str]:
 def download_model(model_name: str, output_dir: str | None = None) -> Path:
     from huggingface_hub import snapshot_download
 
-    root = Path(output_dir) if output_dir else Path.home() / "ai" / "models" / "stt"
+    root = Path(output_dir) if output_dir else Path.home() / ".local" / "share" / "dictate" / "models"
     root.mkdir(parents=True, exist_ok=True)
     local_dir = root / model_name.replace("/", "--")
     print(f"Downloading: {model_name}")
@@ -67,7 +67,7 @@ def download_model(model_name: str, output_dir: str | None = None) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Download an STT model locally")
     parser.add_argument("model", nargs="?", default=DEFAULT_MODEL, help="Hugging Face repo id")
-    parser.add_argument("--output-dir", help="Directory to save the model (default: ~/ai/models/stt)")
+    parser.add_argument("--output-dir", help="Directory to save the model (default: ~/.local/share/dictate/models)")
     args = parser.parse_args()
     path = download_model(args.model, args.output_dir)
     print(f"Saved to: {path}")

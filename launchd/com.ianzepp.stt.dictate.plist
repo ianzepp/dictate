@@ -6,12 +6,12 @@
     <string>com.ianzepp.stt.dictate</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/ianzepp/ai/stt-service/dictate/dist/Dictate.app/Contents/MacOS/Dictate</string>
+        <string>__ROOT__/dictate/dist/Dictate.app/Contents/MacOS/Dictate</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
         <key>STT_CONFIG</key>
-        <string>/Users/ianzepp/.config/stt-service/config.toml</string>
+        <string>__HOME__/.config/stt-service/config.toml</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -22,8 +22,8 @@
     <key>LimitLoadToSessionType</key>
     <string>Aqua</string>
     <key>StandardOutPath</key>
-    <string>/Users/ianzepp/ai/logs/dictate.out.log</string>
+    <string>__HOME__/Library/Logs/Dictate/dictate.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/ianzepp/ai/logs/dictate.err.log</string>
+    <string>__HOME__/Library/Logs/Dictate/dictate.err.log</string>
 </dict>
 </plist>

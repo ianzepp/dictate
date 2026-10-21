@@ -14,10 +14,10 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(config.llmBaseURL, "http://127.0.0.1:8091/v1")
         XCTAssertEqual(config.llmModel, "qwen2.5-1.5b-instruct")
         XCTAssertEqual(config.llmReasoningEffort, "")
-        XCTAssertEqual(config.hotkey, HotkeySpec.named("right_option"))
-        XCTAssertEqual(config.hotkey.keyCode, 0x3D)
+        XCTAssertEqual(config.hotkey, HotkeySpec.named("fn"))
+        XCTAssertEqual(config.sttModel, NSHomeDirectory() + "/.local/share/dictate/models/mlx-community--whisper-large-v3-turbo-4bit")
         XCTAssertEqual(config.replacements.count, 0)
-        XCTAssertTrue(config.debugEnabled)
+        XCTAssertFalse(config.debugEnabled)
     }
 
     func testReplacementsAndFn() throws {

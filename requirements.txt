@@ -1,0 +1,8 @@
+# Speech service. Python 3.11 or newer (tomllib).
+mlx-audio>=0.4.6
+fastapi>=0.141
+uvicorn>=0.53
+pydantic>=2.13
+python-multipart>=0.0.32
+requests>=2.34
+huggingface_hub>=1.32

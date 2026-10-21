@@ -8,7 +8,7 @@ struct DebugTrail {
     static func begin() throws -> DebugTrail {
         let stamp = Self.stamp()
         let root = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
-            .appendingPathComponent("ai/logs/stt-debug", isDirectory: true)
+            .appendingPathComponent("Library/Logs/Dictate/debug", isDirectory: true)
             .appendingPathComponent(stamp, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return DebugTrail(directory: root, stamp: stamp)

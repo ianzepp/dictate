@@ -139,8 +139,8 @@ public enum ConfigFile {
     }
 
     private static func absolutePath(_ value: String) throws -> String {
-        let path = try nonempty("stt.model", value)
-        if !path.hasPrefix("/") { throw ConfigReadError("stt.model must be an absolute path") }
+        let path = (try nonempty("stt.model", value) as NSString).expandingTildeInPath
+        if !path.hasPrefix("/") { throw ConfigReadError("stt.model must be an absolute path or start with ~/") }
         return path
     }
 

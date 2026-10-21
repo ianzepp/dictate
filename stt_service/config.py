@@ -180,9 +180,9 @@ def _local_url(path: Path, label: str, value: str) -> str:
 
 def _model_path(path: Path, value: str) -> str:
     value = _nonempty(path, "stt.model", value)
-    model = Path(value)
+    model = Path(value).expanduser()
     if not model.is_absolute():
-        raise ConfigError(f"{path}: stt.model must be an absolute path")
+        raise ConfigError(f"{path}: stt.model must be an absolute path or start with ~/")
     return str(model)
 
 

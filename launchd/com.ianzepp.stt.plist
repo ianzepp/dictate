@@ -6,18 +6,16 @@
     <string>com.ianzepp.stt</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/ianzepp/ai/venvs/bonsai-mlx/bin/python</string>
-        <string>/Users/ianzepp/ai/stt-service/stt_server.py</string>
+        <string>__PYTHON__</string>
+        <string>__ROOT__/stt_server.py</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
         <key>STT_CONFIG</key>
-        <string>/Users/ianzepp/.config/stt-service/config.toml</string>
-        <key>HF_HOME</key>
-        <string>/Users/ianzepp/ai/huggingface-cache</string>
+        <string>__HOME__/.config/stt-service/config.toml</string>
     </dict>
     <key>WorkingDirectory</key>
-    <string>/Users/ianzepp/ai/stt-service</string>
+    <string>__ROOT__</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -27,8 +25,8 @@
     <key>LimitLoadToSessionType</key>
     <string>Aqua</string>
     <key>StandardOutPath</key>
-    <string>/Users/ianzepp/ai/logs/stt.out.log</string>
+    <string>__HOME__/Library/Logs/Dictate/stt.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/ianzepp/ai/logs/stt.err.log</string>
+    <string>__HOME__/Library/Logs/Dictate/stt.err.log</string>
 </dict>
 </plist>

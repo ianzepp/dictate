@@ -15,11 +15,12 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg.llm_base_url, "http://127.0.0.1:8091/v1")
         self.assertEqual(cfg.llm_model, "qwen2.5-1.5b-instruct")
         self.assertEqual(cfg.llm_reasoning_effort, "")
-        self.assertEqual(cfg.hotkey, "right_option")
+        self.assertEqual(cfg.hotkey, "fn")
+        self.assertTrue(cfg.stt_model.startswith(str(Path.home())))
         self.assertEqual(cfg.hotkey_mode, "hold")
         self.assertEqual(cfg.stt_language, "en")
         self.assertEqual(cfg.replacements, ())
-        self.assertTrue(cfg.debug_enabled)
+        self.assertFalse(cfg.debug_enabled)
 
     def test_replacements_keep_file_order(self):
         cfg = load_config(self._write(
@@ -43,7 +44,7 @@ class ConfigTests(unittest.TestCase):
             load_config(self._write(text))
 
     def test_rejects_unknown_hotkey(self):
-        text = self._body().replace('key = "right_option"', 'key = "f13"')
+        text = self._body().replace('key = "fn"', 'key = "f13"')
         with self.assertRaises(ConfigError):
             load_config(self._write(text))
 

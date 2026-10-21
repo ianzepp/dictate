@@ -6,9 +6,9 @@
     <string>com.ianzepp.stt.2pass</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/opt/homebrew/bin/llama-server</string>
+        <string>__LLAMA_SERVER__</string>
         <string>-m</string>
-        <string>/Users/ianzepp/ai/models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf</string>
+        <string>__LLM_MODEL__</string>
         <string>--alias</string>
         <string>qwen2.5-1.5b-instruct</string>
         <string>--host</string>
@@ -23,7 +23,7 @@
         <string>off</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/ianzepp/ai</string>
+    <string>__ROOT__</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -33,8 +33,8 @@
     <key>LimitLoadToSessionType</key>
     <string>Aqua</string>
     <key>StandardOutPath</key>
-    <string>/Users/ianzepp/ai/logs/stt-2pass.out.log</string>
+    <string>__HOME__/Library/Logs/Dictate/stt-2pass.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/ianzepp/ai/logs/stt-2pass.err.log</string>
+    <string>__HOME__/Library/Logs/Dictate/stt-2pass.err.log</string>
 </dict>
 </plist>
