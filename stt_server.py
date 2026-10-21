@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from contextlib import asynccontextmanager
 import logging
 import tempfile
 import threading
@@ -32,7 +33,19 @@ logging.basicConfig(
 )
 log = logging.getLogger("stt")
 
-app = FastAPI(title="Local STT Service", version="0.2.0")
+_cleanup_server: ManagedServer | None = None
+
+
+@asynccontextmanager
+async def _lifespan(_app):
+    yield
+    # uvicorn re-raises SIGTERM after shutdown, which ends the process before a
+    # finally block in main() runs. Stopping llama-server here happens first.
+    if _cleanup_server:
+        _cleanup_server.stop()
+
+
+app = FastAPI(title="Local STT Service", version="0.2.0", lifespan=_lifespan)
 
 _model = None
 _model_name = ""
@@ -217,6 +230,7 @@ def main() -> None:
     if args.check:
         print(f"config ok: {cfg.path}")
         return
+    global _cleanup_server
     cleanup = None
     if cfg.cleanup_managed:
         try:
@@ -225,6 +239,7 @@ def main() -> None:
             raise SystemExit(str(exc)) from exc
         # Start it first: a first-run download or load overlaps the speech model load.
         cleanup.start()
+        _cleanup_server = cleanup
     try:
         preload(cfg)
         log.info("listening on %s", cfg.speech_url)

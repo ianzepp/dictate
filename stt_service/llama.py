@@ -64,6 +64,9 @@ class ManagedServer:
         self.thread.start()
 
     def stop(self) -> None:
+        if self.stopping.is_set():
+            return
+        log.info("stopping cleanup model")
         self.stopping.set()
         process = self.process
         if process and process.poll() is None:
