@@ -3,9 +3,10 @@ import unittest
 
 from stt_service.cleanup import (
     apply_replacements,
-    cleanup_request,
+    cleanup_messages,
     cleanup_transcript,
     drifted,
+    server_completer,
     strip_wrapping,
 )
 from stt_service.config import load_config
@@ -29,6 +30,9 @@ class FakeResponse:
 class CleanupTests(unittest.TestCase):
     def setUp(self):
         self.cfg = load_config(ROOT_EXAMPLE)
+        self.server = dataclasses.replace(
+            self.cfg, cleanup_model="", cleanup_url="http://127.0.0.1:1234/v1", cleanup_name="qwen"
+        )
 
     def test_word_boundary_and_longer_phrase_first(self):
         pairs = (("cat", "dog"), ("Faber", "FABER"), ("Faber Lang", "FaberLang"))
@@ -41,17 +45,36 @@ class CleanupTests(unittest.TestCase):
 
     def test_system_prompt_lists_pairs_and_transcript_is_tagged(self):
         cfg = dataclasses.replace(self.cfg, replacements=(("em el ex", "MLX"),))
-        messages = cleanup_request("use MLX", cfg)["messages"]
+        messages = cleanup_messages("use MLX", cfg.replacements)
         self.assertEqual(messages[0]["role"], "system")
         self.assertIn("em el ex -> MLX", messages[0]["content"])
         self.assertIn("Do not revert them", messages[0]["content"])
         self.assertEqual(messages[-1], {"role": "user", "content": "<transcript>\nuse MLX\n</transcript>"})
 
-    def test_request_omits_reasoning_for_the_dedicated_model(self):
-        body = cleanup_request("hello", self.cfg)
-        self.assertNotIn("reasoning_effort", body)
-        self.assertEqual(body["model"], "cleanup")
-        self.assertIn("hello", body["messages"][-1]["content"])
+    def test_server_request_names_the_model_and_omits_empty_reasoning(self):
+        sent = {}
+
+        def post(url, json, timeout):
+            sent.update(json)
+            return FakeResponse({"choices": [{"message": {"content": "Hello."}}]})
+
+        server_completer(self.server, post)(cleanup_messages("hello", ()))
+        self.assertEqual(sent["model"], "qwen")
+        self.assertNotIn("reasoning_effort", sent)
+        self.assertIn("hello", sent["messages"][-1]["content"])
+
+    def test_local_model_is_called_with_the_messages(self):
+        seen = []
+
+        def local(messages):
+            seen.append(messages)
+            return "Hello there."
+
+        self.assertEqual(cleanup_transcript("hello there", self.cfg, local), ("Hello there.", True))
+        self.assertEqual(seen[0][-1]["content"], "<transcript>\nhello there\n</transcript>")
+
+    def test_local_model_not_loaded_yet_falls_back(self):
+        self.assertEqual(cleanup_transcript("hello there", self.cfg, None), ("hello there", False))
 
     def test_llm_text_is_used(self):
         def post(url, json, timeout):
@@ -59,7 +82,7 @@ class CleanupTests(unittest.TestCase):
             self.assertEqual(timeout, 60)
             return FakeResponse({"choices": [{"message": {"content": "Hello."}}]})
 
-        text, used = cleanup_transcript("hello", self.cfg, post=post)
+        text, used = cleanup_transcript("hello", self.server, server_completer(self.server, post))
         self.assertEqual(text, "Hello.")
         self.assertTrue(used)
 
@@ -73,7 +96,7 @@ class CleanupTests(unittest.TestCase):
     def test_preamble_and_quotes_are_stripped(self):
         source = "Can you explain to me the purpose of ViviChat?"
         content = 'Sure, I can help with that. Here\'s the cleaned transcript:\n\n"Can you explain to me the purpose of ViviChat?"'
-        text, used = cleanup_transcript(source, self.cfg, post=self.reply(content))
+        text, used = cleanup_transcript(source, self.server, server_completer(self.server, self.reply(content)))
         self.assertEqual(text, source)
         self.assertTrue(used)
 
@@ -87,7 +110,7 @@ class CleanupTests(unittest.TestCase):
     def test_reply_instead_of_transcript_falls_back(self):
         source = "Can you run the polish analyzer on Radix, please?"
         content = "Sure, I can help with that. Please provide the speech-to-text transcript you want me to clean."
-        text, used = cleanup_transcript(source, self.cfg, post=self.reply(content))
+        text, used = cleanup_transcript(source, self.server, server_completer(self.server, self.reply(content)))
         self.assertEqual(text, source)
         self.assertFalse(used)
 
@@ -99,7 +122,7 @@ class CleanupTests(unittest.TestCase):
         def post(url, json, timeout):
             return FakeResponse({"choices": [{"message": {"content": None}}]})
 
-        text, used = cleanup_transcript("hello", self.cfg, post=post)
+        text, used = cleanup_transcript("hello", self.server, server_completer(self.server, post))
         self.assertEqual(text, "hello")
         self.assertFalse(used)
 
@@ -107,7 +130,7 @@ class CleanupTests(unittest.TestCase):
         def post(url, json, timeout):
             raise OSError("connection refused")
 
-        text, used = cleanup_transcript("hello", self.cfg, post=post)
+        text, used = cleanup_transcript("hello", self.server, server_completer(self.server, post))
         self.assertEqual(text, "hello")
         self.assertFalse(used)
 
@@ -116,7 +139,7 @@ class CleanupTests(unittest.TestCase):
             raise AssertionError("model should not be called")
 
         cfg = dataclasses.replace(self.cfg, cleanup_enabled=False)
-        text, used = cleanup_transcript("hello there", cfg, post=post)
+        text, used = cleanup_transcript("hello there", cfg, server_completer(cfg, post))
         self.assertEqual(text, "hello there")
         self.assertFalse(used)
 
@@ -124,7 +147,7 @@ class CleanupTests(unittest.TestCase):
         def post(url, json, timeout):
             raise AssertionError("model should not be called")
 
-        text, used = cleanup_transcript("   ", self.cfg, post=post)
+        text, used = cleanup_transcript("   ", self.server, server_completer(self.server, post))
         self.assertEqual(text, "")
         self.assertFalse(used)
 

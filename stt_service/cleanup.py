@@ -11,6 +11,8 @@ from stt_service.config import Config
 log = logging.getLogger("stt")
 
 Post = Callable[..., object]
+# Chat messages in, the model's reply out. Raises when the model cannot answer.
+Complete = Callable[[list[dict]], str]
 
 
 def apply_replacements(text: str, pairs: tuple[tuple[str, str], ...] | list[tuple[str, str]]) -> str:
@@ -78,18 +80,6 @@ def cleanup_messages(transcript: str, pairs: tuple[tuple[str, str], ...] | list[
     return messages
 
 
-def cleanup_request(transcript: str, cfg: Config) -> dict:
-    body = {
-        "model": cfg.cleanup_name,
-        "messages": cleanup_messages(transcript, cfg.replacements),
-        "max_tokens": 1024,
-        "temperature": 0.2,
-    }
-    if cfg.cleanup_reasoning_effort:
-        body["reasoning_effort"] = cfg.cleanup_reasoning_effort
-    return body
-
-
 # "Sure, here is the cleaned transcript:" and its variants, on their own line.
 PREAMBLE = re.compile(
     r"\A\s*(?:sure|okay|ok|certainly|of course|here)\b[^\n]*\b(?:transcript|text|version)\b[^\n]*:\s*",
@@ -128,26 +118,37 @@ def drifted(source: str, cleaned: str) -> bool:
     return shared / len(heard) < MIN_OVERLAP or shared / len(said) < MIN_OVERLAP
 
 
-def cleanup_transcript(transcript: str, cfg: Config, post: Post | None = None) -> tuple[str, bool]:
-    """Return cleaned text and whether the LLM produced it.
-
-    A failed, empty, or drifted model reply falls back to the transcript it
-    was given, which is already the literal-replaced speech text.
-    """
-    if transcript.strip() == "":
-        return "", False
-    if not cfg.cleanup_enabled:
-        return transcript, False
+def server_completer(cfg: Config, post: Post | None = None) -> Complete:
+    """Ask an OpenAI-compatible server that is already running."""
     if post is None:
         import requests
 
         post = requests.post
-    url = cfg.cleanup_url + "/chat/completions"
-    try:
-        response = post(url, json=cleanup_request(transcript, cfg), timeout=60)
+
+    def complete(messages: list[dict]) -> str:
+        body = {"model": cfg.cleanup_name, "messages": messages, "max_tokens": 1024, "temperature": 0.2}
+        if cfg.cleanup_reasoning_effort:
+            body["reasoning_effort"] = cfg.cleanup_reasoning_effort
+        response = post(cfg.cleanup_url + "/chat/completions", json=body, timeout=60)
         response.raise_for_status()
-        content = response.json()["choices"][0]["message"].get("content")
-    except (OSError, ValueError, KeyError, IndexError, TypeError) as exc:
+        return response.json()["choices"][0]["message"].get("content")
+
+    return complete
+
+
+def cleanup_transcript(transcript: str, cfg: Config, complete: Complete | None) -> tuple[str, bool]:
+    """Return cleaned text and whether the LLM produced it.
+
+    No model yet, or a failed, empty, or drifted reply, falls back to the
+    transcript it was given, which is already the literal-replaced speech text.
+    """
+    if transcript.strip() == "":
+        return "", False
+    if not cfg.cleanup_enabled or complete is None:
+        return transcript, False
+    try:
+        content = complete(cleanup_messages(transcript, cfg.replacements))
+    except Exception as exc:
         log.warning("LLM cleanup failed (%s); using the literal transcript", exc)
         return transcript, False
     if not isinstance(content, str) or content.strip() == "":

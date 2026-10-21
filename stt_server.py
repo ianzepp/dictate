@@ -1,17 +1,16 @@
 """Local speech service.
 
-Opens its port at once and readies the Whisper model in the background,
-downloading it first if needed. Each utterance is recognized,
-literal keyword replacements are applied, then the cleanup model fixes grammar.
-When the config names a cleanup model, this service runs llama-server for it.
-Replacements are reread from the config on every request.
+Opens its port at once and readies the Whisper model, then the cleanup model,
+in the background, downloading each first if needed. Each utterance is
+recognized, literal keyword replacements are applied, then the cleanup model
+fixes grammar. Both models run here on MLX, unless [cleanup] points at a
+server that is already running. Replacements are reread on every request.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
-import dataclasses
 from contextlib import asynccontextmanager
 import logging
 import tempfile
@@ -23,10 +22,10 @@ import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from stt_service.cleanup import apply_replacements, cleanup_transcript
+from stt_service.cleanup import apply_replacements, cleanup_transcript, server_completer
 from stt_service.config import Config, ConfigError, load_config
-from stt_service.llama import ManagedServer, find_server, server_args
-from stt_service.models import describe_failure, needs_download, speech_model_dir
+from stt_service.local_model import LocalModel
+from stt_service.models import describe_failure, model_dir, needs_download
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,23 +34,18 @@ logging.basicConfig(
 )
 log = logging.getLogger("stt")
 
-_cleanup_server: ManagedServer | None = None
-# Why a configured cleanup model is not running, such as llama-server missing. Empty when fine.
-_cleanup_problem = ""
-# "downloading", "loading", "ready", or "failed", with a sentence for the menu.
+# Each "downloading", "loading", "ready", or "failed", with a sentence for the menu.
 _speech_state = {"state": "loading", "detail": ""}
-SPEECH_RETRY_SECONDS = 30
+_cleanup_state = {"state": "loading", "detail": ""}
+_cleanup_model: LocalModel | None = None
+RETRY_SECONDS = 30
 
 
 @asynccontextmanager
 async def _lifespan(_app):
-    task = asyncio.create_task(_prepare_speech())
+    task = asyncio.create_task(_prepare_models())
     yield
     task.cancel()
-    # uvicorn re-raises SIGTERM after shutdown, which ends the process before a
-    # finally block in main() runs. Stopping llama-server here happens first.
-    if _cleanup_server:
-        _cleanup_server.stop()
 
 
 app = FastAPI(title="Local STT Service", version="0.2.0", lifespan=_lifespan)
@@ -80,42 +74,47 @@ def _live_config() -> Config:
             return _last_good
         if _model_name and cfg.speech_model != _model_name:
             log.warning("speech.model changed to %s; restart the service to load it", cfg.speech_model)
+        if _last_good and cfg.cleanup_model != _last_good.cleanup_model:
+            log.warning("cleanup.model changed to %s; restart the service to load it", cfg.cleanup_model)
         _last_good = cfg
         return cfg
 
 
-def _set_speech(state: str, detail: str = "") -> None:
-    _speech_state.update(state=state, detail=detail)
+async def _prepare_models() -> None:
+    """Speech first, since dictation needs it; then the local cleanup model."""
+    cfg = _last_good
+    assert cfg is not None
+    await _prepare(cfg.speech_model, "speech", _speech_state, lambda path: _load_speech(cfg, path))
+    if cfg.cleanup_local:
+        await _prepare(cfg.cleanup_model, "cleanup", _cleanup_state, _load_cleanup)
 
 
-async def _prepare_speech() -> None:
+async def _prepare(model: str, label: str, state: dict, load) -> None:
     """Download if needed, then load, retrying until it works.
 
     The download runs in a worker thread. The load runs on the event loop's
     thread on purpose: MLX's GPU stream belongs to the thread that loaded the
-    model, and requests are recognized on this thread too.
+    model, and requests use both models on this thread too.
     """
-    cfg = _last_good
-    assert cfg is not None
     while True:
         try:
-            if needs_download(cfg.speech_model):
-                _set_speech("downloading", f"Downloading {cfg.speech_model}")
-            model_path = await asyncio.to_thread(speech_model_dir, cfg.speech_model)
-            _set_speech("loading", "Loading the speech model")
+            if needs_download(model):
+                state.update(state="downloading", detail=f"Downloading {model}")
+            path = await asyncio.to_thread(model_dir, model)
+            state.update(state="loading", detail=f"Loading the {label} model")
             await asyncio.sleep(0)
-            _load(cfg, model_path)
-            _set_speech("ready")
+            load(path)
+            state.update(state="ready", detail="")
             return
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            log.warning("speech model unavailable (%s); retrying in %ds", exc, SPEECH_RETRY_SECONDS)
-            _set_speech("failed", describe_failure(cfg.speech_model, exc))
-            await asyncio.sleep(SPEECH_RETRY_SECONDS)
+            log.warning("%s model unavailable (%s); retrying in %ds", label, exc, RETRY_SECONDS)
+            state.update(state="failed", detail=describe_failure(model, exc))
+            await asyncio.sleep(RETRY_SECONDS)
 
 
-def _load(cfg: Config, model_path: Path) -> None:
+def _load_speech(cfg: Config, model_path: Path) -> None:
     """The first utterance after this still compiles Metal kernels."""
     global _model, _model_name, _model_path, _language
     log.info("loading speech model %s", model_path)
@@ -126,6 +125,13 @@ def _load(cfg: Config, model_path: Path) -> None:
     _model_path = str(model_path)
     _language = cfg.speech_language
     log.info("speech model loaded")
+
+
+def _load_cleanup(model_path: Path) -> None:
+    global _cleanup_model
+    log.info("loading cleanup model %s", model_path)
+    _cleanup_model = LocalModel(model_path)
+    log.info("cleanup model loaded")
 
 
 def _require_speech() -> None:
@@ -141,28 +147,25 @@ def _require_speech() -> None:
     raise HTTPException(status_code=503, detail=message)
 
 
-def _effective(cfg: Config) -> Config:
-    """Skip cleanup when its server could not start, instead of failing each request."""
-    if _cleanup_problem and cfg.cleanup_managed:
-        return dataclasses.replace(cfg, cleanup_enabled=False)
-    return cfg
+async def _clean(text: str, cfg: Config) -> tuple[str, bool]:
+    """A local model runs on this thread, like the speech model; a server call runs in a worker."""
+    if cfg.cleanup_local:
+        return cleanup_transcript(text, cfg, _cleanup_model)
+    return await asyncio.to_thread(cleanup_transcript, text, cfg, server_completer(cfg))
 
 
 def _cleanup_status(cfg: Config | None) -> dict:
     if cfg is None or not cfg.cleanup_enabled:
         return {"state": "off", "detail": "Turned off in the config"}
-    if _cleanup_problem and cfg.cleanup_managed:
-        return {"state": "missing", "detail": _cleanup_problem}
+    if cfg.cleanup_local:
+        return dict(_cleanup_state)
     import requests
 
     try:
         requests.get(cfg.cleanup_url + "/models", timeout=0.5).raise_for_status()
         return {"state": "ready", "detail": ""}
     except (OSError, ValueError):
-        pass
-    if cfg.cleanup_managed:
-        return {"state": "starting", "detail": "The cleanup model is starting or downloading"}
-    return {"state": "unreachable", "detail": f"Nothing is answering at {cfg.cleanup_url}"}
+        return {"state": "unreachable", "detail": f"Nothing is answering at {cfg.cleanup_url}"}
 
 
 def transcribe_audio(audio: bytes, suffix: str) -> str:
@@ -254,16 +257,16 @@ async def transcribe_raw(audio_file: UploadFile = File(...)):
 @app.post("/cleanup")
 async def cleanup(body: CleanupBody):
     """Phase two only: grammar cleanup of text that already went through phase one."""
-    cfg = _effective(_config_or_500())
+    cfg = _config_or_500()
     started = time.perf_counter()
-    cleaned, llm_used = await asyncio.to_thread(cleanup_transcript, body.text, cfg)
+    cleaned, llm_used = await _clean(body.text, cfg)
     llm_seconds = time.perf_counter() - started if body.text.strip() else 0.0
     log.info("llm %.2fs used=%s", llm_seconds, llm_used)
     return {
         "cleaned_transcript": cleaned,
         "llm_seconds": round(llm_seconds, 2),
         "llm_used": llm_used,
-        "llm_model": cfg.cleanup_name,
+        "llm_model": cfg.cleanup_model or cfg.cleanup_name,
     }
 
 
@@ -274,7 +277,7 @@ async def transcribe(audio_file: UploadFile = File(...)):
     cfg = _config_or_500()
     raw, replaced, stt_seconds = _phase_one(audio, suffix, cfg)
     llm_started = time.perf_counter()
-    cleaned, llm_used = await asyncio.to_thread(cleanup_transcript, replaced, _effective(cfg))
+    cleaned, llm_used = await _clean(replaced, cfg)
     llm_seconds = time.perf_counter() - llm_started if replaced.strip() else 0.0
     log.info(
         "stt %.2fs (%d chars) llm %.2fs used=%s",
@@ -291,7 +294,7 @@ async def transcribe(audio_file: UploadFile = File(...)):
         "llm_seconds": round(llm_seconds, 2),
         "llm_used": llm_used,
         "model": _model_path,
-        "llm_model": cfg.cleanup_name,
+        "llm_model": cfg.cleanup_model or cfg.cleanup_name,
     }
 
 
@@ -306,25 +309,10 @@ def main() -> None:
     if args.check:
         print(f"config ok: {cfg.path}")
         return
-    global _cleanup_server, _cleanup_problem, _last_good
+    global _last_good
     _last_good = cfg
-    cleanup = None
-    if cfg.cleanup_managed:
-        try:
-            cleanup = ManagedServer(server_args(find_server(), cfg))
-        except FileNotFoundError:
-            # Speech still works; dictation pastes the uncleaned text.
-            _cleanup_problem = "llama-server missing, run brew install llama.cpp"
-            log.warning("%s; running without cleanup", _cleanup_problem)
-        else:
-            cleanup.start()
-            _cleanup_server = cleanup
-    try:
-        log.info("listening on %s", cfg.speech_url)
-        uvicorn.run(app, host="127.0.0.1", port=cfg.speech_port, log_level="info")
-    finally:
-        if cleanup:
-            cleanup.stop()
+    log.info("listening on %s", cfg.speech_url)
+    uvicorn.run(app, host="127.0.0.1", port=cfg.speech_port, log_level="info")
 
 
 if __name__ == "__main__":

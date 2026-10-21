@@ -14,10 +14,9 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg.speech_model, "mlx-community/whisper-large-v3-turbo-4bit")
         self.assertEqual(cfg.speech_url, "http://127.0.0.1:8090")
         self.assertEqual(cfg.speech_language, "en")
-        self.assertTrue(cfg.cleanup_managed)
-        self.assertEqual(cfg.cleanup_model, "bartowski/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M")
-        self.assertEqual(cfg.cleanup_url, "http://127.0.0.1:8091/v1")
-        self.assertEqual(cfg.cleanup_name, "cleanup")
+        self.assertTrue(cfg.cleanup_local)
+        self.assertEqual(cfg.cleanup_model, "mlx-community/Qwen2.5-1.5B-Instruct-4bit")
+        self.assertEqual(cfg.cleanup_url, "")
         self.assertEqual(cfg.cleanup_reasoning_effort, "")
         self.assertEqual(cfg.hotkey, "fn")
         self.assertEqual(cfg.hotkey_mode, "hold")
@@ -31,24 +30,29 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg.speech_port, 8090)
         self.assertEqual(cfg.hotkey, "fn")
         self.assertFalse(cfg.cleanup_enabled)
-        self.assertFalse(cfg.cleanup_managed)
+        self.assertFalse(cfg.cleanup_local)
 
     def test_missing_speech_model(self):
         with self.assertRaises(ConfigError) as caught:
             load_config(self._write('[speech]\nlanguage = "en"\n'))
         self.assertIn("speech", str(caught.exception))
 
-    def test_cleanup_gguf_path(self):
-        cfg = load_config(self._write('[speech]\nmodel = "a/b"\n[cleanup]\nmodel = "~/m/q.gguf"\nport = 9001\n'))
-        self.assertEqual(cfg.cleanup_model, str(Path.home() / "m/q.gguf"))
-        self.assertEqual(cfg.cleanup_url, "http://127.0.0.1:9001/v1")
+    def test_cleanup_model_folder(self):
+        cfg = load_config(self._write('[speech]\nmodel = "a/b"\n[cleanup]\nmodel = "~/m/qwen"\n'))
+        self.assertEqual(cfg.cleanup_model, str(Path.home() / "m/qwen"))
+        self.assertTrue(cfg.cleanup_local)
+
+    def test_rejects_gguf_quant_names_and_port(self):
+        for cleanup in ('model = "bartowski/Qwen-GGUF:Q4_K_M"', 'model = "c/d"\nport = 8091'):
+            with self.assertRaises(ConfigError):
+                load_config(self._write(f'[speech]\nmodel = "a/b"\n[cleanup]\n{cleanup}\n'))
 
     def test_external_cleanup_server(self):
         cfg = load_config(self._write(
             '[speech]\nmodel = "a/b"\n[cleanup]\nurl = "http://localhost:1234/v1/"\nname = "qwen"\n'
             'reasoning_effort = "none"\n'
         ))
-        self.assertFalse(cfg.cleanup_managed)
+        self.assertFalse(cfg.cleanup_local)
         self.assertEqual(cfg.cleanup_url, "http://localhost:1234/v1")
         self.assertEqual(cfg.cleanup_name, "qwen")
         self.assertEqual(cfg.cleanup_reasoning_effort, "none")
@@ -71,11 +75,6 @@ class ConfigTests(unittest.TestCase):
     def test_rejects_bad_model_name(self):
         with self.assertRaises(ConfigError):
             load_config(self._write('[speech]\nmodel = "whisper"\n[cleanup]\nenabled = false\n'))
-
-    def test_rejects_same_ports(self):
-        text = '[speech]\nmodel = "a/b"\nport = 9000\n[cleanup]\nmodel = "c/d"\nport = 9000\n'
-        with self.assertRaises(ConfigError):
-            load_config(self._write(text))
 
     def test_rejects_wrong_types(self):
         for text in ('[speech]\nmodel = "a/b"\nport = "8090"\n', '[speech]\nmodel = "a/b"\nport = true\n'):

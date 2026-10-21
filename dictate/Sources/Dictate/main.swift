@@ -399,9 +399,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             default:
                 note("Loading speech model", detail: "Dictation works in a moment", style: .working)
             }
-        } else if let cleanup = health?.cleanup, ["missing", "unreachable"].contains(cleanup.state) {
+        } else if let cleanup = health?.cleanup, ["failed", "unreachable"].contains(cleanup.state) {
             note("Ready", detail: "\(hold). Cleanup is off: \(cleanup.detail)", style: .ready)
-        } else if health?.cleanup.state == "starting" {
+        } else if health?.cleanup.state == "downloading" {
+            note("Ready", detail: "\(hold). The cleanup model is downloading", style: .ready)
+        } else if health?.cleanup.state == "loading" {
             note("Ready", detail: "\(hold). Cleanup starts in a moment", style: .ready)
         } else {
             note("Ready", detail: hold, style: .ready)

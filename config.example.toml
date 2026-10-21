@@ -15,10 +15,9 @@ port = 8090
 # Set enabled = false to paste the speech text as heard.
 enabled = true
 
-# Dictate runs this model with llama-server. Use a Hugging Face name with a
-# quantization after the colon (downloaded on first start), or a .gguf path.
-model = "bartowski/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M"
-port = 8091
+# Dictate runs this MLX model itself. Use a Hugging Face name, downloaded to
+# ~/.local/share/dictate/models on first start, or the path to a model folder.
+model = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
 
 # Or use a model server you already run, such as LM Studio, Ollama, or llama.cpp.
 # Remove model above, then set its OpenAI-compatible URL and the model's name there:

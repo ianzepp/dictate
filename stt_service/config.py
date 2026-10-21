@@ -21,13 +21,10 @@ HOTKEY_NAMES = (
 REASONING_EFFORTS = ("", "none", "minimal", "low", "medium", "high")
 
 DEFAULT_SPEECH_PORT = 8090
-DEFAULT_CLEANUP_PORT = 8091
-# The name the managed llama-server answers to. Nothing outside this service sees it.
-MANAGED_CLEANUP_NAME = "cleanup"
 
 _KEYS = {
     "speech": ("model", "language", "port"),
-    "cleanup": ("enabled", "model", "port", "url", "name", "reasoning_effort"),
+    "cleanup": ("enabled", "model", "url", "name", "reasoning_effort"),
     "hotkey": ("key", "mode", "lock"),
     "debug": ("enabled",),
 }
@@ -45,10 +42,9 @@ class Config:
     speech_language: str
     speech_port: int
     cleanup_enabled: bool
-    # Set when this service runs llama-server itself: a .gguf path or a Hugging Face repo[:quant].
+    # Set when this service runs the cleanup model itself on MLX: a Hugging Face name or a folder.
     cleanup_model: str
-    cleanup_port: int
-    # The OpenAI-compatible base URL and model name the cleanup request goes to.
+    # Otherwise, an OpenAI-compatible server already running, and the model name it serves.
     cleanup_url: str
     cleanup_name: str
     cleanup_reasoning_effort: str
@@ -64,7 +60,7 @@ class Config:
         return f"http://127.0.0.1:{self.speech_port}"
 
     @property
-    def cleanup_managed(self) -> bool:
+    def cleanup_local(self) -> bool:
         return self.cleanup_model != ""
 
 
@@ -140,7 +136,6 @@ class _Reader:
 
         enabled = self.get("cleanup", "enabled", bool, True)
         model = self.get("cleanup", "model", str, "").strip()
-        cleanup_port = self.port("cleanup.port", self.get("cleanup", "port", int, DEFAULT_CLEANUP_PORT))
         url = self.get("cleanup", "url", str, "").strip()
         name = self.get("cleanup", "name", str, "").strip()
         effort = self.get("cleanup", "reasoning_effort", str, "")
@@ -153,10 +148,6 @@ class _Reader:
             raise self.error("[cleanup] takes either model, or url and name, not both")
         elif model:
             model = self.model("cleanup.model", model)
-            if cleanup_port == speech_port:
-                raise self.error("speech.port and cleanup.port must differ")
-            url = f"http://127.0.0.1:{cleanup_port}/v1"
-            name = MANAGED_CLEANUP_NAME
         elif url and name:
             url = self.local_url("cleanup.url", url)
         else:
@@ -185,7 +176,6 @@ class _Reader:
             speech_port=speech_port,
             cleanup_enabled=enabled,
             cleanup_model=model,
-            cleanup_port=cleanup_port,
             cleanup_url=url,
             cleanup_name=name,
             cleanup_reasoning_effort=effort,
@@ -205,8 +195,7 @@ class _Reader:
             if not path.is_absolute():
                 raise self.error(f"{label} path must be absolute or start with ~/")
             return str(path)
-        repo = value.split(":", 1)[0]
-        if repo.count("/") != 1 or repo.startswith("/") or repo.endswith("/"):
+        if value.count("/") != 1 or value.endswith("/") or ":" in value:
             raise self.error(f"{label} must be a path or a Hugging Face name such as owner/repo")
         return value
 

@@ -13,8 +13,6 @@
     <dict>
         <key>DICTATE_CONFIG</key>
         <string>__HOME__/.config/dictate/config.toml</string>
-        <key>LLAMA_SERVER</key>
-        <string>__LLAMA_SERVER__</string>
     </dict>
     <key>WorkingDirectory</key>
     <string>__ROOT__</string>

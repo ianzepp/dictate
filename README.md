@@ -17,7 +17,7 @@ Two cleanups happen between your voice and the paste. Your own `[replacements]` 
 | Part | Port | What it runs | LaunchAgent |
 | --- | --- | --- | --- |
 | Speech service | 8090 | Whisper large-v3 turbo on MLX (`stt_server.py`) | `com.ianzepp.dictate.speech` |
-| Cleanup model | 8091 | Qwen2.5 1.5B Instruct on llama.cpp, started and restarted by the speech service | |
+| Cleanup model | | Qwen2.5 1.5B Instruct on MLX, run inside the speech service | |
 | Menu-bar app | | `Dictate.app`: the hotkey, the overlay, and the paste | `com.ianzepp.dictate` |
 
 Both LaunchAgents start at login and restart if they stop.
@@ -27,8 +27,7 @@ Both LaunchAgents start at login and restart if they stop.
 - An Apple Silicon Mac on macOS 14 or newer.
 - Python 3.11 or newer.
 - Xcode Command Line Tools, for `swift`: `xcode-select --install`.
-- llama.cpp, for the cleanup model: `brew install llama.cpp`. Without it, dictation still works but pastes the text uncleaned.
-- About 2 GB of disk for the two models.
+- About 1.3 GB of disk for the two models.
 
 ## Setup
 
@@ -59,9 +58,9 @@ Clone this repository, then run these from its root.
    launchd/install.sh
    ```
 
-   `install.sh` checks the config, fills in this Mac's paths, and starts the speech service and the app. Set `PYTHON` or `LLAMA_SERVER` before it if yours live somewhere else.
+   `install.sh` checks the config, fills in this Mac's paths, and starts the speech service and the app. Set `PYTHON` before it if your Python lives somewhere else.
 
-   The first start downloads both models, about 1.5 GB, in about a minute and a half on a fast connection. The menu-bar card shows Downloading speech model until dictation is ready.
+   The first start downloads both models, about 1.3 GB, in about a minute on a fast connection. The menu-bar card shows Downloading speech model until dictation is ready; until the cleanup model follows, dictation pastes Whisper's text uncleaned.
 
 5. Grant permissions. macOS asks for Microphone access on first use. Add Dictate under System Settings > Privacy & Security > Input Monitoring, and again under Accessibility. Then restart the app:
 
@@ -90,7 +89,7 @@ launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate          # hotkey, lock 
 
 ## Troubleshooting
 
-The menu-bar card says what is wrong and where to fix it. It checks the speech service every ten seconds and whenever you open the menu. Logs are in `~/Library/Logs/Dictate/`: `stt.err.log` for the speech service, `cleanup.log` for the cleanup model, and `dictate.err.log` for the app.
+The menu-bar card says what is wrong and where to fix it. It checks the speech service every ten seconds and whenever you open the menu. Logs are in `~/Library/Logs/Dictate/`: `stt.err.log` for the speech service and both models, and `dictate.err.log` for the app.
 
 - **Nothing happens when you hold Fn.** Dictate needs Input Monitoring. Grant it, then restart the app.
 - **Fn opens the emoji picker or Apple's dictation.** See setup step 6.
@@ -99,7 +98,7 @@ The menu-bar card says what is wrong and where to fix it. It checks the speech s
 - **The first dictation after a restart is slow.** Metal compiles its kernels on first use. Later ones are fast.
 - **The card says Speech service not running.** Check `stt.err.log`. A broken config is the usual cause; `launchd/install.sh` checks it and says what is wrong.
 - **The card says Speech model unavailable.** The download failed, for example with no internet connection. It retries every 30 seconds.
-- **The card says Cleanup is off.** Dictation still works, but pastes Whisper's text uncleaned. If `llama-server` is missing, run `brew install llama.cpp`, then restart the speech service. Otherwise check `cleanup.log`.
+- **The card says Cleanup is off.** Dictation still works, but pastes Whisper's text uncleaned. The card says why: the cleanup model failed to download or load, which retries every 30 seconds, or the model server in `[cleanup] url` is not answering. Details are in `stt.err.log`.
 
 ## Updating
 
@@ -118,11 +117,11 @@ launchctl bootout gui/$(id -u)/com.ianzepp.dictate
 rm ~/Library/LaunchAgents/com.ianzepp.dictate.speech.plist ~/Library/LaunchAgents/com.ianzepp.dictate.plist
 ```
 
-Then delete the speech model in `~/.local/share/dictate`, the cleanup model in `~/.cache/huggingface/hub` (its folder starts with `models--bartowski--Qwen2.5`), the logs in `~/Library/Logs/Dictate`, and the config in `~/.config/dictate`.
+Then delete the models in `~/.local/share/dictate`, the logs in `~/Library/Logs/Dictate`, and the config in `~/.config/dictate`.
 
 ## Development
 
-Run the speech service in the foreground, and send it an audio file. It listens at once and readies the speech model in the background; `GET /health` reports progress.
+Run the speech service in the foreground, and send it an audio file. It listens at once and readies both models in the background; `GET /health` reports progress.
 
 ```bash
 ./start.sh

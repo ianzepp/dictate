@@ -1,5 +1,6 @@
 # Speech service. Python 3.11 or newer (tomllib).
 mlx-audio>=0.4.6
+mlx-lm>=0.31
 fastapi>=0.141
 uvicorn>=0.53
 pydantic>=2.13

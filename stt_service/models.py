@@ -78,12 +78,12 @@ def needs_download(model: str, root: Path = MODELS_DIR) -> bool:
     return not is_local_path(model) and not (local_dir_for(model, root) / "config.json").is_file()
 
 
-def speech_model_dir(model: str, root: Path = MODELS_DIR, fetch: Callable[[str, Path], Path] = download) -> Path:
+def model_dir(model: str, root: Path = MODELS_DIR, fetch: Callable[[str, Path], Path] = download) -> Path:
     """The folder to load: a configured path as is, or a Hugging Face name downloaded on first use."""
     if is_local_path(model):
         path = Path(model)
         if not path.is_dir():
-            raise FileNotFoundError(f"speech model folder not found: {path}")
+            raise FileNotFoundError(f"model folder not found: {path}")
         return path
     local_dir = local_dir_for(model, root)
     # config.json lands last in a snapshot; without it the download did not finish.

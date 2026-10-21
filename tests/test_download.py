@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from stt_service.models import PROCESSOR_FILES, describe_failure, ensure_processor, local_dir_for, speech_model_dir
+from stt_service.models import PROCESSOR_FILES, describe_failure, ensure_processor, local_dir_for, model_dir
 
 
 class DownloadTests(unittest.TestCase):
@@ -27,15 +27,15 @@ class DownloadTests(unittest.TestCase):
                 (local / "config.json").write_text("{}", encoding="utf-8")
                 return local
 
-            first = speech_model_dir("owner/whisper", root, fetch)
-            second = speech_model_dir("owner/whisper", root, fetch)
+            first = model_dir("owner/whisper", root, fetch)
+            second = model_dir("owner/whisper", root, fetch)
         self.assertEqual(first, root / "owner--whisper")
         self.assertEqual(second, first)
         self.assertEqual(calls, ["owner/whisper"])
 
     def test_speech_path_must_exist(self):
         with self.assertRaises(FileNotFoundError):
-            speech_model_dir("/tmp/dictate-no-such-model")
+            model_dir("/tmp/dictate-no-such-model")
 
     def test_failures_read_as_one_sentence(self):
         self.assertIn("No internet", describe_failure("a/b", ConnectionError("Failed to establish a new connection")))
