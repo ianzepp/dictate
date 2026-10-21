@@ -43,6 +43,12 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(config.debugEnabled)
     }
 
+    func testRightOptionToTalkRightCommandToLock() throws {
+        let config = try ConfigFile.parse("[hotkey]\nkey = \"right_option\"\nlock = \"right_command\"\n")
+        XCTAssertEqual(config.hotkey, HotkeySpec.named("right_option"))
+        XCTAssertEqual(config.lockKey, HotkeySpec.named("right_command"))
+    }
+
     func testDefaultsAndBadValues() throws {
         let empty = try ConfigFile.parse("[speech]\nmodel = \"a/b\"\n")
         XCTAssertEqual(empty.speechPort, ConfigFile.defaultSpeechPort)

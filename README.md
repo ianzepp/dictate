@@ -5,10 +5,50 @@ Hold a key, talk, let go. Dictate records your voice, turns it into text with a 
 ## Using it
 
 - **Hold Fn and talk. Let go to paste.** A small overlay at the bottom of the screen shows Listening with a live microphone level, then Transcribing, then Pasted. It floats over full-screen apps and never takes focus.
-- **Lock for long dictation.** While holding Fn, press Right Option. Recording stays on after you let go, and the overlay shows Locked. Fn does nothing while locked. Press Right Option again to unlock: if Fn is still down you are back to a normal hold, otherwise it transcribes.
+- **Lock for long dictation.** Add Right Option while holding Fn, and you can let go of both keys. See [Hotkeys](#hotkeys).
 - **Cancel.** Click the ✕ on the overlay. Nothing is pasted.
 - **Change your mind.** Letting go without saying anything pastes nothing. The overlay shows Nothing heard.
 - **The menu-bar icon** shows the current state and the last five transcripts. Click one to copy it.
+
+## Hotkeys
+
+Two keys do everything: the **hold key**, Fn by default, and the **lock key**, Right Option by default. Both can be changed; see [Using other keys](#using-other-keys). The table uses the defaults.
+
+| You are | You do | What happens |
+| --- | --- | --- |
+| Idle | Hold Fn | Listening starts. |
+| Listening | Let go of Fn | Recording stops, then it transcribes and pastes. |
+| Listening | Press Right Option, still holding Fn | **Locked.** You can let go of both keys; recording continues. The overlay shows a lock. |
+| Locked | Press or let go of Fn | Nothing. Fn is ignored while locked. |
+| Locked | Press Right Option, with Fn up | **Unlocks and finishes.** It transcribes and pastes. |
+| Locked | Press Right Option, with Fn held down | **Unlocks back to a normal hold.** Let go of Fn when you are done. |
+| Listening or locked | Click ✕ on the overlay | Cancels. Nothing is pasted. |
+| Idle | Press Right Option | Nothing. The lock key only matters during a recording. |
+
+In practice:
+
+- **A long dictation:** hold Fn, tap Right Option, let go of everything, and talk. Tap Right Option again to paste.
+- **Changed your mind about locking:** while locked, hold Fn and tap Right Option. You are back to an ordinary hold; let go of Fn to paste.
+
+A tap of Fn too quick to record anything, such as half of a double tap, is ignored. Dictate only watches these keys; the app you are typing in still receives them.
+
+### Using other keys
+
+Both keys are set in the config. For example, if Fn already does something else for you, hold Right Option to talk and use Right Command to lock:
+
+```toml
+[hotkey]
+key = "right_option"
+lock = "right_command"
+```
+
+Then restart the app with `launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate`. The menu card's hints, such as "Hold Right Option to dictate", use the new names.
+
+Either key can be `fn`, `right_option`, `left_option`, `right_command`, `left_command`, `right_control`, or `right_shift`, and the two must differ. `lock = "none"` turns locking off. If you leave `lock` out, it defaults to Right Option, except when the hold key is itself Right Option; then locking is off until you name a lock key.
+
+A hold key you also type with, such as Option for accented letters, starts a recording each time you hold it. Nothing is pasted, because there is no speech, but the overlay briefly shows Nothing heard.
+
+If you keep Fn as the hold key, it needs one macOS setting; see setup step 6.
 
 Two cleanups happen between your voice and the paste. Your own `[replacements]` fix words Whisper keeps getting wrong. Then a small language model fixes punctuation and drops filler words such as um. If that model fails, or its answer drifts away from what you said, Dictate pastes the uncleaned text instead.
 
@@ -18,7 +58,7 @@ Two cleanups happen between your voice and the paste. Your own `[replacements]` 
 | --- | --- | --- | --- |
 | Speech service | 8090 | Whisper large-v3 turbo on MLX (`stt_server.py`) | `com.ianzepp.dictate.speech` |
 | Cleanup model | | Qwen2.5 1.5B Instruct on MLX, run inside the speech service | |
-| Menu-bar app | | `Dictate.app`: the hotkey, the overlay, and the paste | `com.ianzepp.dictate` |
+| Menu-bar app | | `Dictate.app`: the hotkeys, the overlay, and the paste | `com.ianzepp.dictate` |
 
 Both LaunchAgents start at login and restart if they stop.
 
@@ -68,7 +108,7 @@ Clone this repository, then run these from its root.
    launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate
    ```
 
-6. Free up the Fn key. In System Settings > Keyboard, set "Press 🌐 key to" to Do Nothing. Otherwise Fn also opens the emoji picker or Apple's dictation.
+6. Free up the Fn key, if it is your hold key. In System Settings > Keyboard, set "Press 🌐 key to" to Do Nothing. Otherwise Fn also opens the emoji picker or Apple's dictation.
 
 ## Config
 
@@ -76,7 +116,7 @@ Clone this repository, then run these from its root.
 
 - `[speech] model` and `[cleanup] model` take a Hugging Face name, downloaded on first start, or a path to files you already have.
 - `[cleanup]` can instead point at a model server you already run, such as LM Studio or Ollama, with `url` and `name`. `enabled = false` skips cleanup.
-- `[hotkey] key` is the hold key: `fn`, `right_option`, `left_option`, `right_command`, `left_command`, `right_control`, or `right_shift`. `[hotkey] lock` is the lock key, or `none`.
+- `[hotkey] key` and `[hotkey] lock` choose the hold and lock keys. See [Hotkeys](#hotkeys).
 - `[replacements]` maps a phrase Whisper hears to the spelling you want, such as `"em el ex" = "MLX"`. These apply on the next dictation.
 - `[debug] enabled = true` saves each dictation under `~/Library/Logs/Dictate/debug/<timestamp>/`: the audio, the speech text, and the cleaned text.
 
@@ -128,7 +168,7 @@ Run the speech service in the foreground, and send it an audio file. It listens 
 .venv/bin/python transcribe.py audio.wav
 ```
 
-`download_model.py` fetches a speech model ahead of time, for example before going offline.
+`download_model.py` fetches a model ahead of time, for example before going offline: `.venv/bin/python download_model.py mlx-community/Qwen2.5-1.5B-Instruct-4bit`. With no name it fetches the default speech model.
 
 Tests:
 
