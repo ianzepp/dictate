@@ -36,6 +36,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// True while the card shows the idle state, so a health change may redraw it.
     private var showingIdle = false
     private var healthTimer: Timer?
+    /// Single pass pastes Whisper's text as heard. Two passes also run it through the cleanup model.
+    /// Chosen from the menu and kept across launches.
+    private var twoPass = UserDefaults.standard.object(forKey: "twoPass") as? Bool ?? true
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusMenuItem.isEnabled = false
@@ -83,6 +86,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         menu.addItem(.separator())
+        let passes = NSMenuItem(title: "Two-pass cleanup", action: #selector(togglePasses), keyEquivalent: "")
+        passes.target = self
+        passes.state = twoPass ? .on : .off
+        menu.addItem(passes)
         let quit = NSMenuItem(title: "Quit Dictate", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
@@ -97,6 +104,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             recent.removeLast(recent.count - recentLimit)
         }
         rebuildMenu()
+    }
+
+    @objc private func togglePasses() {
+        twoPass.toggle()
+        UserDefaults.standard.set(twoPass, forKey: "twoPass")
+        rebuildMenu()
+        if showingIdle { ready() }
     }
 
     @objc private func copyRecent(_ sender: NSMenuItem) {
@@ -281,8 +295,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         guard let baseURL = config?.serviceURL else { return }
-        if config?.debugEnabled == true {
-            transcribeInSteps(wav: wav, baseURL: baseURL)
+        if config?.debugEnabled == true || !twoPass {
+            transcribeInSteps(wav: wav, baseURL: baseURL, cleanup: twoPass)
         } else {
             transcribeOnce(wav: wav, baseURL: baseURL)
         }
@@ -309,15 +323,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Saves the WAV, then phase one, then phase two, before the paste.
-    private func transcribeInSteps(wav: Data, baseURL: String) {
-        let trail: DebugTrail
-        do {
-            trail = try DebugTrail.begin()
-            try trail.write(name: "01-audio.wav", data: wav)
-        } catch {
-            fail(error.localizedDescription)
-            return
+    /// Phase one, then phase two when `cleanup` is on, before the paste. With debug on, each step is saved.
+    private func transcribeInSteps(wav: Data, baseURL: String, cleanup: Bool) {
+        var trail: DebugTrail?
+        if config?.debugEnabled == true {
+            do {
+                let begun = try DebugTrail.begin()
+                try begun.write(name: "01-audio.wav", data: wav)
+                trail = begun
+            } catch {
+                fail(error.localizedDescription)
+                return
+            }
         }
         busy = true
         setSymbol("ellipsis.circle")
@@ -329,17 +346,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard self?.session == current else { return }
                 switch result {
                 case .failure(let error):
-                    try? trail.write(name: "error.txt", text: "phase 1\n\(error.localizedDescription)\n")
+                    try? trail?.write(name: "error.txt", text: "phase 1\n\(error.localizedDescription)\n")
                     self?.busy = false
                     self?.setSymbol("mic")
                     self?.fail(error.localizedDescription)
                 case .success(let phase1):
                     let phase1Text = "raw:\n\(phase1.raw)\n\nreplaced:\n\(phase1.replaced)\n"
-                    try? trail.write(name: "02-phase1.txt", text: phase1Text)
+                    try? trail?.write(name: "02-phase1.txt", text: phase1Text)
                     if phase1.replaced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         self?.busy = false
                         self?.setSymbol("mic")
                         self?.fail("Nothing heard", detail: "The recording had no speech in it")
+                        return
+                    }
+                    if !cleanup {
+                        self?.busy = false
+                        self?.setSymbol("mic")
+                        self?.deliver(phase1.replaced, stamp: trail?.stamp)
                         return
                     }
                     SpeechClient.cleanup(baseURL: baseURL, text: phase1.replaced) { result2 in
@@ -349,11 +372,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             self?.setSymbol("mic")
                             switch result2 {
                             case .failure(let error):
-                                try? trail.write(name: "error.txt", text: "phase 2\n\(error.localizedDescription)\n")
+                                try? trail?.write(name: "error.txt", text: "phase 2\n\(error.localizedDescription)\n")
                                 self?.fail(error.localizedDescription)
                             case .success(let cleaned):
-                                try? trail.write(name: "03-phase2.txt", text: cleaned + "\n")
-                                self?.deliver(cleaned, stamp: trail.stamp)
+                                try? trail?.write(name: "03-phase2.txt", text: cleaned + "\n")
+                                self?.deliver(cleaned, stamp: trail?.stamp)
                             }
                         }
                     }
@@ -406,6 +429,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             default:
                 note("Loading speech model", detail: "Dictation works in a moment", style: .working)
             }
+        } else if !twoPass {
+            note("Ready", detail: "\(hold). Single pass: no cleanup", style: .ready)
         } else if let cleanup = health?.cleanup, ["failed", "unreachable"].contains(cleanup.state) {
             note("Ready", detail: "\(hold). Cleanup is off: \(cleanup.detail)", style: .ready)
         } else if health?.cleanup.state == "downloading" {

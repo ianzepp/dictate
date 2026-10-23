@@ -10,6 +10,7 @@ Hold a key, talk, let go. Dictate records your voice, turns it into text with a 
 - **Change your mind.** Letting go without saying anything pastes nothing. The overlay shows Nothing heard.
 - **Music fades out while you talk.** While you record, Dictate fades your Mac's output to silent, so the microphone hears you and not the song, then fades it back when you let go. If you change the volume yourself mid-dictation, yours is kept.
 - **The menu-bar icon** shows the current state and the last five transcripts. Click one to copy it.
+- **Single or two passes.** The menu's **Two-pass cleanup** item is checked by default. Uncheck it and Dictate pastes Whisper's text as heard, without the cleanup model. The choice is kept across launches.
 
 ## Hotkeys
 
