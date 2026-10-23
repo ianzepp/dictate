@@ -3,6 +3,7 @@ import unittest
 
 from stt_service.cleanup import (
     apply_replacements,
+    chunks,
     cleanup_messages,
     cleanup_transcript,
     drifted,
@@ -117,6 +118,65 @@ class CleanupTests(unittest.TestCase):
     def test_drift_allows_normal_cleanup(self):
         self.assertFalse(drifted("um so uh can you you know fix the the build", "So can you fix the build?"))
         self.assertTrue(drifted("fix the build", "Here is a poem about the sea and the sky."))
+
+    def test_drift_rejects_lost_meaning_from_real_dictations(self):
+        cases = (
+            # a dropped decision
+            (
+                "I would approve it. I would not include step five because I don't know what that is.",
+                "I would approve it.",
+            ),
+            # a reversed clause
+            ("It belongs in the Vivi repo and not in Faberlang.", "It belongs in the Vivi repo, even though it's not in Faberlang."),
+            # a dropped negation
+            ("We should not merge this.", "We should merge this."),
+            # a swapped pronoun
+            ("Am I going to see my results?", "Are you going to see your results?"),
+            # a dropped noun
+            ("Let's get the Vivi service pump up and running.", "Let's get the Vivi service up and running."),
+        )
+        for source, cleaned in cases:
+            self.assertTrue(drifted(source, cleaned), cleaned)
+
+    def test_drift_allows_punctuation_contractions_and_fillers(self):
+        cases = (
+            ("all right i am back from the drive", "All right, I'm back from the drive."),
+            ("we don't um want that you know because it breaks", "We do not want that because it breaks."),
+            ("it is basically fine", "It is fine."),
+            ("you can do it anyways", "You can do it anyway."),
+        )
+        for source, cleaned in cases:
+            self.assertFalse(drifted(source, cleaned), cleaned)
+
+    def test_chunks_keep_whole_sentences(self):
+        sentence = "one two three four five six seven eight nine ten."
+        text = " ".join([sentence] * 9)
+        parts = chunks(text)
+        self.assertEqual(" ".join(parts), text)
+        self.assertTrue(all(part.endswith(".") for part in parts))
+        self.assertTrue(all(len(part.split()) <= 40 for part in parts))
+        self.assertGreater(len(parts), 1)
+
+    def test_a_bad_chunk_keeps_its_speech_and_the_rest_is_cleaned(self):
+        first = "we should not merge this branch today " * 4
+        second = "um please run the tests"
+        text = first.strip() + ". " + second + "."
+        replies = iter(["We should merge this branch today.", "Please run the tests."])
+        cfg = dataclasses.replace(self.server)
+
+        def post(url, json, timeout):
+            return FakeResponse({"choices": [{"message": {"content": next(replies)}}]})
+
+        import stt_service.cleanup as cleanup
+
+        original = cleanup.CHUNK_WORDS
+        cleanup.CHUNK_WORDS = 10
+        try:
+            result, used = cleanup_transcript(text, cfg, server_completer(cfg, post))
+        finally:
+            cleanup.CHUNK_WORDS = original
+        self.assertEqual(result, first.strip() + ". Please run the tests.")
+        self.assertTrue(used)
 
     def test_empty_content_falls_back(self):
         def post(url, json, timeout):

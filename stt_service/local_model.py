@@ -17,7 +17,7 @@ class LocalModel:
         from mlx_lm.sample_utils import make_sampler
 
         self.model, self.tokenizer = load(str(path))
-        self.sampler = make_sampler(temp=0.2)
+        self.sampler = make_sampler(temp=0.0)
 
     def __call__(self, messages: list[dict]) -> str:
         from mlx_lm import generate

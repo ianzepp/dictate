@@ -51,7 +51,7 @@ A hold key you also type with, such as Option for accented letters, starts a rec
 
 If you keep Fn as the hold key, it needs one macOS setting; see setup step 6.
 
-Two cleanups happen between your voice and the paste. Your own `[replacements]` fix words Whisper keeps getting wrong. Then a small language model fixes punctuation and drops filler words such as um. If that model fails, or its answer drifts away from what you said, Dictate pastes the uncleaned text instead.
+Two cleanups happen between your voice and the paste. Your own `[replacements]` fix words Whisper keeps getting wrong. Then a small language model fixes punctuation and drops filler words such as um. It works a few sentences at a time, and a check keeps it honest: it may drop fillers, stutters, and a few small words, but not a content word, a pronoun, or a negation. If the model fails, or a piece comes back changed, Dictate pastes that piece uncleaned and cleans the rest.
 
 ## How it fits together
 
