@@ -10,7 +10,7 @@ Hold a key, talk, let go. Dictate records your voice, turns it into text with a 
 - **Change your mind.** Letting go without saying anything pastes nothing. The overlay shows Nothing heard.
 - **Music fades out while you talk.** While you record, Dictate fades your Mac's output to silent, so the microphone hears you and not the song, then fades it back when you let go. If you change the volume yourself mid-dictation, yours is kept.
 - **The menu-bar icon** shows the current state and the last five transcripts. Click one to copy it.
-- **Single or two passes.** The menu's **Two-pass cleanup** item is checked by default. Uncheck it and Dictate pastes Whisper's text as heard, without the cleanup model. The choice is kept across launches.
+- **Single or two passes.** By default Dictate pastes Whisper's text as heard, after your `[replacements]`. Check **Two-pass cleanup** in the menu to also run the text through the cleanup model. The choice is kept across launches.
 
 ## Hotkeys
 
@@ -52,7 +52,7 @@ A hold key you also type with, such as Option for accented letters, starts a rec
 
 If you keep Fn as the hold key, it needs one macOS setting; see setup step 6.
 
-Two cleanups happen between your voice and the paste. Your own `[replacements]` fix words Whisper keeps getting wrong. Then a small language model fixes punctuation and drops filler words such as um. It works a few sentences at a time, and a check keeps it honest: it may drop fillers, stutters, and a few small words, but not a content word, a pronoun, or a negation. If the model fails, or a piece comes back changed, Dictate pastes that piece uncleaned and cleans the rest.
+Up to two cleanups happen between your voice and the paste. Your own `[replacements]` fix words Whisper keeps getting wrong. If you turn on two-pass cleanup in the menu, a small language model then fixes punctuation and drops filler words such as um. It works a few sentences at a time, and a check keeps it honest: it may drop fillers, stutters, and a few small words, but not a content word, a pronoun, or a negation. If the model fails, or a piece comes back changed, Dictate pastes that piece uncleaned and cleans the rest.
 
 ## How it fits together
 

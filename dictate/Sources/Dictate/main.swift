@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var healthTimer: Timer?
     /// Single pass pastes Whisper's text as heard. Two passes also run it through the cleanup model.
     /// Chosen from the menu and kept across launches.
-    private var twoPass = UserDefaults.standard.object(forKey: "twoPass") as? Bool ?? true
+    private var twoPass = UserDefaults.standard.object(forKey: "twoPass") as? Bool ?? false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusMenuItem.isEnabled = false
