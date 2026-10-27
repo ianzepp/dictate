@@ -1,5 +1,5 @@
-import AppKit
 import AVFoundation
+import AppKit
 import DictateCore
 import DictateInference
 import Foundation
@@ -83,9 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuildMenu() {
         guard let menu = statusItem.menu else { return }
-        while menu.items.count > 0 {
-            menu.removeItem(at: 0)
-        }
+        menu.removeAllItems()
         menu.addItem(statusMenuItem)
         if !recent.isEmpty {
             menu.addItem(.separator())
@@ -144,7 +142,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func loadConfig() {
-        let path = ProcessInfo.processInfo.environment["DICTATE_CONFIG"]
+        let path =
+            ProcessInfo.processInfo.environment["DICTATE_CONFIG"]
             ?? (NSHomeDirectory() as NSString).appendingPathComponent(".config/dictate/config.toml")
         do {
             let text = try String(contentsOfFile: path, encoding: .utf8)
@@ -190,7 +189,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return event
         }
         if globalMonitor == nil {
-            note("Input Monitoring needed", detail: "Allow Dictate in System Settings > Privacy & Security, then relaunch", style: .problem)
+            note(
+                "Input Monitoring needed",
+                detail: "Allow Dictate in System Settings > Privacy & Security, then relaunch", style: .problem)
         }
     }
 
@@ -198,7 +199,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let spec = config?.hotkey else { return }
         let flags = UInt(event.modifierFlags.rawValue)
         if let lock = config?.lockKey, event.keyCode == lock.keyCode, flags & lock.modifierBit != 0,
-           recorder.isRecording {
+            recorder.isRecording
+        {
             locked ? unlockRecording() : lockRecording()
             return
         }
@@ -227,7 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         do {
-            // Turn down first, so the first moment of the recording is quiet too.
+            // Start fading the output before opening the microphone.
             ducker.duck()
             try recorder.start()
             session += 1
@@ -279,6 +281,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The overlay's close button: stop recording or ignore the pending reply, and paste nothing.
     private func cancel() {
+        guard recorder.isRecording || inferenceTask != nil else {
+            overlay.dismiss()
+            return
+        }
         ducker.restore()
         session += 1
         inferenceTask?.cancel()
@@ -339,6 +345,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try begun.write(name: "01-audio.wav", data: wav)
                 trail = begun
             } catch {
+                setSymbol("mic")
                 fail(error.localizedDescription)
                 return
             }
@@ -362,7 +369,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let recognized = try await engine.recognize(wav: wav)
                 try Task.checkCancellation()
                 guard self.session == current else { return }
-                try? trail?.write(name: "02-phase1.txt",
+                try? trail?.write(
+                    name: "02-phase1.txt",
                     text: "raw:\n\(recognized.raw)\n\nreplaced:\n\(recognized.replaced)\n")
                 guard !recognized.replaced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     self.fail("Nothing heard", detail: "The recording had no speech in it")
@@ -456,8 +464,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let changed = reading != self.health
             self.health = reading
             if changed {
-                FileHandle.standardOutput.write(Data(
-                    "Models speech=\(reading.speech.state.rawValue) cleanup=\(reading.cleanup.state.rawValue)\n".utf8))
+                FileHandle.standardOutput.write(
+                    Data(
+                        "Models speech=\(reading.speech.state.rawValue) cleanup=\(reading.cleanup.state.rawValue)\n"
+                            .utf8))
                 if self.showingIdle { self.ready() }
             }
         }
@@ -473,7 +483,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func noteMicrophoneDenied() {
-        note("Microphone access needed", detail: "Allow Dictate in System Settings > Privacy & Security", style: .problem)
+        note(
+            "Microphone access needed", detail: "Allow Dictate in System Settings > Privacy & Security", style: .problem
+        )
     }
 
     private var keyName: String { Self.displayName(config?.hotkey.name) ?? "the key" }
