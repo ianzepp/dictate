@@ -1,0 +1,9 @@
+# Captured output, immutable parity inputs, generated resolution and local builds.
+artifacts/**
+**/Fixtures/**
+spikes/swift-speech/fixtures/**
+spikes/swift-speech/evidence/**
+**/Package.resolved
+**/.build/**
+**/DerivedData/**
+**/dist/**
