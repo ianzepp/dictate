@@ -63,9 +63,12 @@ public enum ConfigFile {
 
         let cleanup = parsed.tables["cleanup"] ?? [:]
         let enabled = try boolean(cleanup["enabled"], label: "cleanup.enabled", default: true)
-        var cleanupModel = try string(cleanup["model"], label: "cleanup.model", default: "").trimmingCharacters(in: .whitespacesAndNewlines)
-        var cleanupURL = try string(cleanup["url"], label: "cleanup.url", default: "").trimmingCharacters(in: .whitespacesAndNewlines)
-        var cleanupName = try string(cleanup["name"], label: "cleanup.name", default: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        var cleanupModel = try string(cleanup["model"], label: "cleanup.model", default: "").trimmingCharacters(
+            in: .whitespacesAndNewlines)
+        var cleanupURL = try string(cleanup["url"], label: "cleanup.url", default: "").trimmingCharacters(
+            in: .whitespacesAndNewlines)
+        var cleanupName = try string(cleanup["name"], label: "cleanup.name", default: "").trimmingCharacters(
+            in: .whitespacesAndNewlines)
         let effort = try string(cleanup["reasoning_effort"], label: "cleanup.reasoning_effort", default: "")
         guard reasoningEfforts.contains(effort) else {
             throw ConfigReadError("cleanup.reasoning_effort must be one of \"\", none, minimal, low, medium, high")
@@ -101,7 +104,8 @@ public enum ConfigFile {
         } else if let spec = HotkeySpec.named(lockName), lockName != hotkeyName {
             lockKey = spec
         } else {
-            throw ConfigReadError("hotkey.lock must be none or one of \(hotkeyNames.joined(separator: ", ")) and differ from hotkey.key")
+            throw ConfigReadError(
+                "hotkey.lock must be none or one of \(hotkeyNames.joined(separator: ", ")) and differ from hotkey.key")
         }
 
         let debug = parsed.tables["debug"] ?? [:]
@@ -122,7 +126,7 @@ public enum ConfigFile {
 
     private static func string(_ value: ConfigValue?, label: String, default fallback: String) throws -> String {
         guard let value else { return fallback }
-        guard case let .string(text) = value else {
+        guard case .string(let text) = value else {
             throw ConfigReadError(typeError(label, expected: "a string", value: value))
         }
         return text
@@ -130,7 +134,7 @@ public enum ConfigFile {
 
     private static func boolean(_ value: ConfigValue?, label: String, default fallback: Bool) throws -> Bool {
         guard let value else { return fallback }
-        guard case let .boolean(flag) = value else {
+        guard case .boolean(let flag) = value else {
             throw ConfigReadError(typeError(label, expected: "true or false", value: value))
         }
         return flag
@@ -140,7 +144,7 @@ public enum ConfigFile {
         switch value {
         case .string, .boolean, .number:
             return "\(label) must be \(expected)"
-        case let .unsupported(kind):
+        case .unsupported(let kind):
             return "\(label) must be \(expected); \(kind) are not supported in Dictate config"
         }
     }
@@ -171,9 +175,10 @@ public enum ConfigFile {
             let host = components.host?.lowercased(),
             host == "127.0.0.1" || host == "localhost",
             let port = components.port,
-            (0...65535).contains(port)
+            (1...65535).contains(port),
+            components.query == nil, components.fragment == nil
         else {
-            throw ConfigReadError("\(label) must be http://127.0.0.1:<port>/... or http://localhost:<port>/...")
+            throw ConfigReadError("\(label) must be a loopback HTTP base URL with a port and no query or fragment")
         }
         guard components.user == nil && components.password == nil else {
             throw ConfigReadError("\(label) must not carry credentials")
@@ -252,7 +257,9 @@ private struct ConfigParser {
             throw error("unknown section: \(key)", line: lineNumber)
         }
         if table == "speech" && key == "port" {
-            throw error("speech.port was removed; delete it from config.toml because speech inference now runs in the app", line: lineNumber)
+            throw error(
+                "speech.port was removed; delete it from config.toml because speech inference now runs in the app",
+                line: lineNumber)
         }
         guard let allowed = ConfigFile.keys[table], table == "replacements" || allowed.contains(key) else {
             throw error("unknown key in [\(table)]: \(key)", line: lineNumber)
@@ -264,9 +271,9 @@ private struct ConfigParser {
         let value = try Self.parseValue(rawValue, line: lineNumber)
         if table == "replacements" {
             guard !key.isEmpty else { throw error("replacement key must be a non-empty string", line: lineNumber) }
-            guard case let .string(replacement) = value else {
+            guard case .string(let replacement) = value else {
                 let detail: String
-                if case let .unsupported(kind) = value {
+                if case .unsupported(let kind) = value {
                     detail = "; \(kind) are not supported in Dictate config"
                 } else {
                     detail = ""
@@ -322,12 +329,12 @@ private struct ConfigParser {
             guard rest.isEmpty else { throw ConfigReadError("line \(lineNumber): trailing junk after key") }
             return key
         }
-        guard text.unicodeScalars.allSatisfy({ scalar in
-            (scalar.value >= 0x41 && scalar.value <= 0x5A) ||
-                (scalar.value >= 0x61 && scalar.value <= 0x7A) ||
-                (scalar.value >= 0x30 && scalar.value <= 0x39) ||
-                scalar.value == 0x5F || scalar.value == 0x2D
-        }) else {
+        guard
+            text.unicodeScalars.allSatisfy({ scalar in
+                (scalar.value >= 0x41 && scalar.value <= 0x5A) || (scalar.value >= 0x61 && scalar.value <= 0x7A)
+                    || (scalar.value >= 0x30 && scalar.value <= 0x39) || scalar.value == 0x5F || scalar.value == 0x2D
+            })
+        else {
             throw ConfigReadError("line \(lineNumber): bad key \(text); use a bare key or a quoted key")
         }
         return text
@@ -358,13 +365,17 @@ private struct ConfigParser {
         if isDateTime(text) { return .unsupported("date/time values") }
         if first == "[" { return .unsupported("arrays") }
         if first == "{" { return .unsupported("inline tables") }
-        if first.isNumber || first == "+" || first == "-" || text == "nan" || text == "inf" || text == "+inf" || text == "-inf" {
+        if first.isNumber || first == "+" || first == "-" || text == "nan" || text == "inf" || text == "+inf"
+            || text == "-inf"
+        {
             throw ConfigReadError("line \(lineNumber): invalid TOML number or date/time value")
         }
         throw ConfigReadError("line \(lineNumber): unsupported bare value; use a quoted string, number, or true/false")
     }
 
-    private static func parseBasicString(_ text: String, at index: inout String.Index, line lineNumber: Int) throws -> String {
+    private static func parseBasicString(_ text: String, at index: inout String.Index, line lineNumber: Int) throws
+        -> String
+    {
         guard index < text.endIndex, text[index] == "\"" else {
             throw ConfigReadError("line \(lineNumber): expected a quoted string")
         }
@@ -388,8 +399,10 @@ private struct ConfigParser {
                 case "r": output.append("\r")
                 case "\"": output.append("\"")
                 case "\\": output.append("\\")
-                case "u": output.unicodeScalars.append(try parseUnicodeScalar(text, at: &index, digits: 4, line: lineNumber))
-                case "U": output.unicodeScalars.append(try parseUnicodeScalar(text, at: &index, digits: 8, line: lineNumber))
+                case "u":
+                    output.unicodeScalars.append(try parseUnicodeScalar(text, at: &index, digits: 4, line: lineNumber))
+                case "U":
+                    output.unicodeScalars.append(try parseUnicodeScalar(text, at: &index, digits: 8, line: lineNumber))
                 default: throw ConfigReadError("line \(lineNumber): unsupported escape \\\(escaped)")
                 }
                 continue
@@ -402,7 +415,9 @@ private struct ConfigParser {
         throw ConfigReadError("line \(lineNumber): unterminated string")
     }
 
-    private static func parseUnicodeScalar(_ text: String, at index: inout String.Index, digits: Int, line lineNumber: Int) throws -> UnicodeScalar {
+    private static func parseUnicodeScalar(
+        _ text: String, at index: inout String.Index, digits: Int, line lineNumber: Int
+    ) throws -> UnicodeScalar {
         var hex = ""
         for _ in 0..<digits {
             guard index < text.endIndex else { throw ConfigReadError("line \(lineNumber): incomplete Unicode escape") }
@@ -424,18 +439,24 @@ private struct ConfigParser {
     }
 
     private static func isNumber(_ text: String) -> Bool {
-        matches(text, pattern: #"[+-]?(?:0|[1-9](?:_?[0-9])*)"#) ||
-            matches(text, pattern: #"0x[0-9A-Fa-f](?:_?[0-9A-Fa-f])*"#) ||
-            matches(text, pattern: #"0o[0-7](?:_?[0-7])*"#) ||
-            matches(text, pattern: #"0b[01](?:_?[01])*"#) ||
-            matches(text, pattern: #"[+-]?(?:(?:0|[1-9](?:_?[0-9])*)\.[0-9](?:_?[0-9])*(?:[eE][+-]?[0-9](?:_?[0-9])*)?|(?:0|[1-9](?:_?[0-9])*)[eE][+-]?[0-9](?:_?[0-9])*)"#) ||
-            ["inf", "+inf", "-inf", "nan", "+nan", "-nan"].contains(text)
+        matches(text, pattern: #"[+-]?(?:0|[1-9](?:_?[0-9])*)"#)
+            || matches(text, pattern: #"0x[0-9A-Fa-f](?:_?[0-9A-Fa-f])*"#)
+            || matches(text, pattern: #"0o[0-7](?:_?[0-7])*"#) || matches(text, pattern: #"0b[01](?:_?[01])*"#)
+            || matches(
+                text,
+                pattern:
+                    #"[+-]?(?:(?:0|[1-9](?:_?[0-9])*)\.[0-9](?:_?[0-9])*(?:[eE][+-]?[0-9](?:_?[0-9])*)?|(?:0|[1-9](?:_?[0-9])*)[eE][+-]?[0-9](?:_?[0-9])*)"#
+            ) || ["inf", "+inf", "-inf", "nan", "+nan", "-nan"].contains(text)
     }
 
     private static func isDateTime(_ text: String) -> Bool {
-        matches(text, pattern: #"[0-9]{4}-[0-9]{2}-[0-9]{2}"#) ||
-            matches(text, pattern: #"[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?"#) ||
-            matches(text, pattern: #"[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:[Zz]|[+-][0-9]{2}:[0-9]{2})?"#)
+        matches(text, pattern: #"[0-9]{4}-[0-9]{2}-[0-9]{2}"#)
+            || matches(text, pattern: #"[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?"#)
+            || matches(
+                text,
+                pattern:
+                    #"[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:[Zz]|[+-][0-9]{2}:[0-9]{2})?"#
+            )
     }
 
     private static func matches(_ text: String, pattern: String) -> Bool {

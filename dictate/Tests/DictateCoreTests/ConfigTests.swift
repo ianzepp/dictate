@@ -2,21 +2,30 @@ import DictateCore
 import XCTest
 
 final class ConfigTests: XCTestCase {
+    func testCleanupEndpointRequiresAnUsableBaseURL() {
+        for url in ["http://localhost:0/v1", "http://localhost:1234/v1?key=value", "http://localhost:1234/v1#fragment"]
+        {
+            let text = "[speech]\nmodel = \"a/b\"\n[cleanup]\nurl = \"\(url)\"\nname = \"qwen\"\n"
+            XCTAssertThrowsError(try ConfigFile.parse(text), url)
+        }
+    }
+
     func testDocumentedNativeConfigSettings() throws {
-        let config = try ConfigFile.parse("""
-        [speech]
-        model = "mlx-community/whisper-large-v3-turbo-4bit"
-        language = "en"
-        [cleanup]
-        enabled = true
-        model = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
-        [hotkey]
-        key = "fn"
-        lock = "right_option"
-        [debug]
-        enabled = false
-        [replacements]
-        """)
+        let config = try ConfigFile.parse(
+            """
+            [speech]
+            model = "mlx-community/whisper-large-v3-turbo-4bit"
+            language = "en"
+            [cleanup]
+            enabled = true
+            model = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
+            [hotkey]
+            key = "fn"
+            lock = "right_option"
+            [debug]
+            enabled = false
+            [replacements]
+            """)
 
         XCTAssertEqual(config.speechModel, "mlx-community/whisper-large-v3-turbo-4bit")
         XCTAssertEqual(config.speechLanguage, "en")
@@ -37,26 +46,29 @@ final class ConfigTests: XCTestCase {
         XCTAssertThrowsError(try ConfigFile.parse("[cleanup]\nenabled = false\n")) { error in
             XCTAssertTrue(String(describing: error).contains("[speech] missing: model"))
         }
-        XCTAssertThrowsError(try ConfigFile.parse("[speech]\nmodel = \"owner/model\"\nport = 8090\n[cleanup]\nenabled = false\n")) { error in
+        XCTAssertThrowsError(
+            try ConfigFile.parse("[speech]\nmodel = \"owner/model\"\nport = 8090\n[cleanup]\nenabled = false\n")
+        ) { error in
             XCTAssertTrue(String(describing: error).contains("speech.port was removed"))
             XCTAssertTrue(String(describing: error).contains("delete it"))
         }
     }
 
     func testDefaultsAndDisabledCleanupMatchPythonContract() throws {
-        let config = try ConfigFile.parse("""
-        [speech]
-        model = "owner/model"
+        let config = try ConfigFile.parse(
+            """
+            [speech]
+            model = "owner/model"
 
-        [cleanup]
-        enabled = false
-        model = "  owner/ignored  "
-        url = "http://example.com:1234/v1"
-        name = "ignored"
+            [cleanup]
+            enabled = false
+            model = "  owner/ignored  "
+            url = "http://example.com:1234/v1"
+            name = "ignored"
 
-        [hotkey]
-        key = "right_option"
-        """)
+            [hotkey]
+            key = "right_option"
+            """)
 
         XCTAssertEqual(config.speechLanguage, "en")
         XCTAssertFalse(config.cleanupEnabled)
@@ -71,34 +83,37 @@ final class ConfigTests: XCTestCase {
     }
 
     func testCleanupModelPathAndHuggingFaceName() throws {
-        let path = try ConfigFile.parse("""
-        [speech]
-        model = "~/models/whisper"
-        [cleanup]
-        model = "~/models/qwen"
-        """)
+        let path = try ConfigFile.parse(
+            """
+            [speech]
+            model = "~/models/whisper"
+            [cleanup]
+            model = "~/models/qwen"
+            """)
         XCTAssertEqual(path.speechModel, (NSHomeDirectory() as NSString).appendingPathComponent("models/whisper"))
         XCTAssertEqual(path.cleanupModel, (NSHomeDirectory() as NSString).appendingPathComponent("models/qwen"))
 
-        let hub = try ConfigFile.parse("""
-        [speech]
-        model = "  owner/whisper  "
-        [cleanup]
-        model = " owner/qwen "
-        """)
+        let hub = try ConfigFile.parse(
+            """
+            [speech]
+            model = "  owner/whisper  "
+            [cleanup]
+            model = " owner/qwen "
+            """)
         XCTAssertEqual(hub.speechModel, "owner/whisper")
         XCTAssertEqual(hub.cleanupModel, "owner/qwen")
     }
 
     func testExternalCleanupServerAndReasoningEffort() throws {
-        let config = try ConfigFile.parse("""
-        [speech]
-        model = "owner/model"
-        [cleanup]
-        url = "http://localhost:1234/v1///"
-        name = "  qwen  "
-        reasoning_effort = "none"
-        """)
+        let config = try ConfigFile.parse(
+            """
+            [speech]
+            model = "owner/model"
+            [cleanup]
+            url = "http://localhost:1234/v1///"
+            name = "  qwen  "
+            reasoning_effort = "none"
+            """)
 
         XCTAssertTrue(config.cleanupEnabled)
         XCTAssertEqual(config.cleanupModel, "")
@@ -114,13 +129,15 @@ final class ConfigTests: XCTestCase {
 
         let both = "[speech]\nmodel = \"a/b\"\n[cleanup]\nmodel = \"c/d\"\nurl = \"http://localhost:1\"\nname = \"x\"\n"
         XCTAssertThrowsError(try ConfigFile.parse(both))
-        XCTAssertThrowsError(try ConfigFile.parse("[speech]\nmodel = \"a/b\"\n[cleanup]\nurl = \"http://localhost:1\"\n"))
+        XCTAssertThrowsError(
+            try ConfigFile.parse("[speech]\nmodel = \"a/b\"\n[cleanup]\nurl = \"http://localhost:1\"\n"))
         XCTAssertThrowsError(try ConfigFile.parse("[speech]\nmodel = \"a/b\"\n[cleanup]\nname = \"x\"\n"))
     }
 
     func testRejectsInvalidModelNamesAndPaths() {
         for value in ["whisper", "owner/", "owner/a/b", "owner/model:Q4", "./relative", "../relative"] {
-            XCTAssertThrowsError(try ConfigFile.parse("[speech]\nmodel = \"\(value)\"\n[cleanup]\nenabled = false\n"), value)
+            XCTAssertThrowsError(
+                try ConfigFile.parse("[speech]\nmodel = \"\(value)\"\n[cleanup]\nenabled = false\n"), value)
         }
         XCTAssertThrowsError(try ConfigFile.parse("[speech]\nmodel = \"   \"\n[cleanup]\nenabled = false\n"))
     }
@@ -132,7 +149,10 @@ final class ConfigTests: XCTestCase {
     }
 
     func testRejectsRemoteOrCredentialedCleanupURLs() {
-        for url in ["http://example.com:80/v1", "https://localhost:1234/v1", "http://localhost/v1", "http://localhost:99999/v1", "http://user:pass@localhost:1234/v1"] {
+        for url in [
+            "http://example.com:80/v1", "https://localhost:1234/v1", "http://localhost/v1", "http://localhost:99999/v1",
+            "http://user:pass@localhost:1234/v1",
+        ] {
             let text = "[speech]\nmodel = \"a/b\"\n[cleanup]\nurl = \"\(url)\"\nname = \"qwen\"\n"
             XCTAssertThrowsError(try ConfigFile.parse(text), url)
         }
@@ -159,24 +179,27 @@ final class ConfigTests: XCTestCase {
     }
 
     func testReplacementOrderQuotedKeysAndUnicodeEscapes() throws {
-        let config = try parse("""
-        [replacements]
-        "em el ex" = "MLX"
-        "caf\\u00E9" = "café"
-        "key\\U0001F680" = "🚀"
-        "quote\\\"key" = "say \\\"hi\\\""
-        "line\\tkey" = "first\\nsecond"
-        "escaped-control" = "\\u0001"
-        """ )
+        let config = try parse(
+            """
+            [replacements]
+            "em el ex" = "MLX"
+            "caf\\u00E9" = "café"
+            "key\\U0001F680" = "🚀"
+            "quote\\\"key" = "say \\\"hi\\\""
+            "line\\tkey" = "first\\nsecond"
+            "escaped-control" = "\\u0001"
+            """)
 
-        XCTAssertEqual(config.replacements, [
-            Replacement(source: "em el ex", replacement: "MLX"),
-            Replacement(source: "café", replacement: "café"),
-            Replacement(source: "key🚀", replacement: "🚀"),
-            Replacement(source: "quote\"key", replacement: "say \"hi\""),
-            Replacement(source: "line\tkey", replacement: "first\nsecond"),
-            Replacement(source: "escaped-control", replacement: "\u{0001}"),
-        ])
+        XCTAssertEqual(
+            config.replacements,
+            [
+                Replacement(source: "em el ex", replacement: "MLX"),
+                Replacement(source: "café", replacement: "café"),
+                Replacement(source: "key🚀", replacement: "🚀"),
+                Replacement(source: "quote\"key", replacement: "say \"hi\""),
+                Replacement(source: "line\tkey", replacement: "first\nsecond"),
+                Replacement(source: "escaped-control", replacement: "\u{0001}"),
+            ])
         let encoded = try JSONEncoder().encode(config.replacements[0])
         XCTAssertEqual(try JSONDecoder().decode(Replacement.self, from: encoded), config.replacements[0])
     }
@@ -257,7 +280,8 @@ final class ConfigTests: XCTestCase {
         )
         XCTAssertEqual(status.speech.state.rawValue, "downloading")
         XCTAssertEqual(status.cleanup.state.rawValue, "off")
-        XCTAssertEqual(try JSONDecoder().decode(ModelState.self, from: JSONEncoder().encode(ModelState.unreachable)), .unreachable)
+        XCTAssertEqual(
+            try JSONDecoder().decode(ModelState.self, from: JSONEncoder().encode(ModelState.unreachable)), .unreachable)
     }
 
     private func parse(_ addition: String) throws -> AppConfig {
@@ -284,7 +308,8 @@ final class ConfigTests: XCTestCase {
         if !hasSpeech {
             text = "[speech]\nmodel = \"owner/speech\"\n" + text
         } else if !hasSpeechModel {
-            text = text.replacingOccurrences(of: "[speech]", with: "[speech]\nmodel = \"owner/speech\"", range: text.range(of: "[speech]"))
+            text = text.replacingOccurrences(
+                of: "[speech]", with: "[speech]\nmodel = \"owner/speech\"", range: text.range(of: "[speech]"))
         }
         if !hasCleanup { text += "\n[cleanup]\nenabled = false\n" }
         return try ConfigFile.parse(text)
