@@ -1,0 +1,34 @@
+[
+  {
+    "name": "usage",
+    "exit_code": 2,
+    "stderr": "Usage: DictateCleanupSpike MODEL_DIRECTORY CLEANUP_PROMPTS.json\n"
+  },
+  {
+    "name": "missing_model",
+    "exit_code": 1,
+    "stderr": "Cleanup spike failed: configurationFileError(\"config.json\", \"nonexistent/dictate-cleanup-model\", Error Domain=NSCocoaErrorDomain Code=260 \"The file \u201cconfig.json\u201d couldn\u2019t be opened because there is no such file.\" UserInfo={NSFilePath=/nonexistent/dictate-cleanup-model/config.json, NSURL=file:///nonexistent/dictate-cleanup-model/config.json, NSUnderlyingError=0x7658c6c600 {Error Domain=NSPOSIXErrorDomain Code=2 \"No such file or directory\"}})\n"
+  },
+  {
+    "name": "native_prompt_token_mismatch",
+    "exit_code": 1,
+    "stdout_empty": true,
+    "stderr": "Cleanup spike failed: Error Domain=CleanupSpike Code=1 \"Prompt tokens differ from Python: ordinary-fillers/0\" UserInfo={NSLocalizedDescription=Prompt tokens differ from Python: ordinary-fillers/0}\n"
+  },
+  {
+    "name": "summary_missing_row",
+    "exit_code": 1,
+    "verdict": {
+      "valid": false,
+      "error": "swift ('long-multichunk', 2): expected iterations [1, 2, 3], got [1, 2]"
+    }
+  },
+  {
+    "name": "summary_token_mismatch",
+    "exit_code": 1,
+    "verdict": {
+      "valid": false,
+      "error": "swift row 1: prompt token IDs differ from fixture"
+    }
+  }
+]

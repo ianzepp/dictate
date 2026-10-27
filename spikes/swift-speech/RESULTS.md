@@ -1,5 +1,8 @@
 # Native Swift speech spike — 2026-10-26
 
+This records the speech-only experiment. The Qwen follow-up is recorded in
+[CLEANUP_RESULTS.md](CLEANUP_RESULTS.md).
+
 The speech-recognition part can run in Swift without Python. The standalone
 release executable loaded Dictate's existing Whisper large-v3-turbo 4-bit
 checkpoint unchanged and transcribed both synthetic fixtures on `Device(gpu, 0)`.
@@ -91,7 +94,9 @@ installed speech service still reported both models ready afterward.
 
 This is enough evidence to proceed with native speech integration. It is not
 a completed replacement for the Python service. Remaining work includes
-real microphone recordings, longer and boundary-sensitive utterances, optional
-Qwen cleanup inference, replacements and cleanup integrity checks, model
+real microphone recordings, longer and boundary-sensitive utterances,
+replacements and cleanup integrity checks, model
 download/recovery, and moving inference off the app's UI thread. Packaging and
 removing the speech LaunchAgent belong to that integration, not this spike.
+Qwen model inference was subsequently validated in the separate cleanup spike;
+the cleanup integrity rules still need a Swift implementation.

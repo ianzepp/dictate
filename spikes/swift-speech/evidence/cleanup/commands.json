@@ -1,0 +1,60 @@
+{
+  "resolve": {
+    "command_log": "resolve-cleanup.log",
+    "timings": [
+      "real 55.93",
+      "user 11.23",
+      "sys 4.77"
+    ],
+    "build_result": []
+  },
+  "resolve_pinned": {
+    "command_log": "resolve-cleanup-pinned.log",
+    "timings": [
+      "real 2.90",
+      "user 4.06",
+      "sys 1.49"
+    ],
+    "build_result": []
+  },
+  "release_build": {
+    "command_log": "build-cleanup.log",
+    "timings": [
+      "real 77.46",
+      "user 118.63",
+      "sys 5.97"
+    ],
+    "build_result": [
+      "** BUILD SUCCEEDED **"
+    ]
+  },
+  "python_inference": {
+    "command_log": "results/cleanup-python-time.txt",
+    "timings": [
+      "real 8.07",
+      "user 4.52",
+      "sys 1.33"
+    ],
+    "build_result": []
+  },
+  "swift_inference": {
+    "command_log": "results/cleanup-swift-time.txt",
+    "timings": [
+      "real 7.94",
+      "user 2.30",
+      "sys 1.29"
+    ],
+    "build_result": []
+  },
+  "speech_release_build": {
+    "command_log": "build-speech-with-cleanup.log",
+    "timings": [
+      "real 7.71",
+      "user 9.42",
+      "sys 2.90"
+    ],
+    "build_result": [
+      "** BUILD SUCCEEDED **"
+    ]
+  }
+}

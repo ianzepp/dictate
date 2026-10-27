@@ -1,0 +1,214 @@
+{
+  "recorded_utc": "2026-10-27T01:35:11.238315+00:00",
+  "source_head": "8b3ec343422d9906bde219d1be710143fac8072f",
+  "model_directory": "/Users/ianzepp/.local/share/dictate/models/mlx-community--Qwen2.5-1.5B-Instruct-4bit",
+  "model_config": {
+    "architectures": [
+      "Qwen2ForCausalLM"
+    ],
+    "attention_dropout": 0.0,
+    "bos_token_id": 151643,
+    "eos_token_id": 151645,
+    "hidden_act": "silu",
+    "hidden_size": 1536,
+    "initializer_range": 0.02,
+    "intermediate_size": 8960,
+    "max_position_embeddings": 32768,
+    "max_window_layers": 21,
+    "model_type": "qwen2",
+    "num_attention_heads": 12,
+    "num_hidden_layers": 28,
+    "num_key_value_heads": 2,
+    "quantization": {
+      "group_size": 64,
+      "bits": 4
+    },
+    "rms_norm_eps": 1e-06,
+    "rope_theta": 1000000.0,
+    "sliding_window": 32768,
+    "tie_word_embeddings": true,
+    "torch_dtype": "bfloat16",
+    "transformers_version": "4.43.1",
+    "use_cache": true,
+    "use_sliding_window": false,
+    "vocab_size": 151936
+  },
+  "model_files": {
+    "added_tokens.json": "58b54bbe36fc752f79a24a271ef66a0a0830054b4dfad94bde757d851968060b",
+    "config.json": "636d3e2a15e8914b8cf82b05cc2288a811f9bd93c3bf1afc00cab701a70b47c0",
+    "model.safetensors": "0979f33d1bc58afcf696d13f57977644e7b11a6f0eec3e631d8e9463d18c0717",
+    "model.safetensors.index.json": "6b98634d5044f0e2ad45228a374f8445904e571f1082392d08a6ce54f5d517ca",
+    "special_tokens_map.json": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd",
+    "tokenizer.json": "a8506e7111b80c6d8635951a02eab0f4e1a8e4e5772da83846579e97b16f61bf",
+    "tokenizer_config.json": "f7c61e32b7a17d19bf8e7037dcb74079a833e53ea9801f24008cac68458f03b7",
+    "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+  },
+  "fixture_sha256": {
+    "cleanup-cases.json": "078a7d0e25df43b085fc6edaeb002c65d05ab896957d874fad26328ab897d10d",
+    "cleanup-prompts.json": "f06ed34ddc9384ffd26504c90b44c922556eef90ba03ddf72baa5adc8d6e8ee5"
+  },
+  "generation": {
+    "temperature": 0,
+    "max_tokens": 1024,
+    "fresh_cache_per_call": true
+  },
+  "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t85%; discharging; 9:37 remaining present: true",
+  "pins": [
+    {
+      "identity": "eventsource",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/mattt/EventSource.git",
+      "state": {
+        "revision": "86b5096ac59ab46e66bd1f6377c604bc1dab0bc2",
+        "version": "1.5.1"
+      }
+    },
+    {
+      "identity": "mlx-audio-swift",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/Blaizzy/mlx-audio-swift.git",
+      "state": {
+        "revision": "fe2c182f4da8115fe2b6b99c9a4d2048fbf9b1e6"
+      }
+    },
+    {
+      "identity": "mlx-swift",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/ml-explore/mlx-swift.git",
+      "state": {
+        "revision": "19601207e9a0de51e03ee6ec0c3c5f3784275075",
+        "version": "0.32.3"
+      }
+    },
+    {
+      "identity": "mlx-swift-lm",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/ml-explore/mlx-swift-lm.git",
+      "state": {
+        "revision": "efcedcd4cd245eb03b65050a6bd2c103d7252d42"
+      }
+    },
+    {
+      "identity": "swift-asn1",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-asn1.git",
+      "state": {
+        "revision": "3b6410f7dee09eb33cdd26260c5fd47fda19b0e2",
+        "version": "1.7.3"
+      }
+    },
+    {
+      "identity": "swift-collections",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-collections.git",
+      "state": {
+        "revision": "844289ac455816e193f1dbbe014f3c4dbe429410",
+        "version": "1.7.4"
+      }
+    },
+    {
+      "identity": "swift-crypto",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-crypto.git",
+      "state": {
+        "revision": "da9d28d69ebe3894b18376c8f2395c2f37b8448f",
+        "version": "4.5.2"
+      }
+    },
+    {
+      "identity": "swift-huggingface",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/huggingface/swift-huggingface.git",
+      "state": {
+        "revision": "f0a0cb43cb1b402d2bbf6fb10d8981328c449c48",
+        "version": "0.13.0"
+      }
+    },
+    {
+      "identity": "swift-jinja",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/huggingface/swift-jinja.git",
+      "state": {
+        "revision": "1e4d0dc69f7ec1277131fb3853808229c5991825",
+        "version": "2.5.2"
+      }
+    },
+    {
+      "identity": "swift-numerics",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-numerics",
+      "state": {
+        "revision": "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
+        "version": "1.1.1"
+      }
+    },
+    {
+      "identity": "swift-syntax",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/swiftlang/swift-syntax.git",
+      "state": {
+        "revision": "9de99a78f099e59caf2b2beec65a4c45d54b2081",
+        "version": "603.0.1"
+      }
+    },
+    {
+      "identity": "swift-transformers",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/huggingface/swift-transformers.git",
+      "state": {
+        "revision": "48473106a93b2d8dfb114b82f0628ebbb71734e7",
+        "version": "1.3.5"
+      }
+    },
+    {
+      "identity": "yyjson",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/ibireme/yyjson.git",
+      "state": {
+        "revision": "8b4a38dc994a110abaec8a400615567bd996105f",
+        "version": "0.12.0"
+      }
+    },
+    {
+      "identity": "zstd",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/facebook/zstd.git",
+      "state": {
+        "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "version": "1.5.7"
+      }
+    }
+  ],
+  "source_hashes": {
+    "stt_service/local_model.py": "ccebcb5b5f765899f411e9bd6a2c720e9cec3584c901438d66f13c9ded321644",
+    "stt_service/cleanup.py": "a9f2426d904be48eaa7fa61fd1abe7e18de64f1d29700891d3bd27d8096de1e5",
+    "spikes/swift-speech/Sources/DictateCleanupSpike/main.swift": "6f8eb971bc52800e91efb0a881d70ef8447dc4e5efbe6c9e602cef05745d2cfa",
+    "spikes/swift-speech/Sources/DictateCleanupSpike/LocalTokenizer.swift": "abe45a55fb08ebd0c67e069fbeb765491607f049417a79f1142dd71d9ae1e3f1"
+  },
+  "python_executable": "/Users/ianzepp/ai/venvs/bonsai-mlx/bin/python",
+  "guard_scope": "Python post-analysis only, not a native guard implementation",
+  "run_order": "prepare fixture; compile; direct Python inference; direct Swift inference",
+  "python_version": "3.13.14",
+  "python_packages": {
+    "mlx": "0.32.0",
+    "mlx-metal": "0.32.0",
+    "mlx-lm": "0.31.3",
+    "transformers": "5.5.0"
+  },
+  "model_hashes_verified_after_inference": true,
+  "speech_service_after": {
+    "status": "ok",
+    "speech": {
+      "state": "ready",
+      "detail": ""
+    },
+    "cleanup": {
+      "state": "ready",
+      "detail": ""
+    },
+    "stt_model_loaded": true,
+    "stt_model": "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit",
+    "cleanup_url": "",
+    "cleanup_model": "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
+  }
+}

@@ -1,7 +1,8 @@
-# Native Swift speech spike
+# Native Swift inference spikes
 
 Question: can a native Swift executable use Dictate's existing 4-bit Whisper
 large-v3-turbo weights, with useful output and latency, without Python?
+The follow-up also tests the existing Qwen2.5 1.5B 4-bit cleanup weights.
 
 This is a separate package. It does not change the app, installed LaunchAgents,
 configuration, or model weights. `Package.resolved` records the dependency
@@ -50,7 +51,35 @@ replacements and optional cleanup.
 Synthetic audio makes this repeatable, but does not establish real microphone
 quality. A short fixture and a fixture longer than Whisper's 30-second window
 exercise different paths. Results on battery are provisional. This spike does
-not establish that the optional Qwen cleanup or the complete app has migrated.
+not establish that the complete app has migrated.
 
 Measured results and limitations are recorded in [RESULTS.md](RESULTS.md), with
 the actual transcripts and timings under `evidence/`.
+
+## Qwen cleanup
+
+`DictateCleanupSpike` loads the local Qwen directory directly, renders each
+chunk's chat template in Swift, and checks every input token ID against the
+Python fixture before generation. Each call has fresh generation state,
+temperature zero, and a 1024-token limit. The model stays loaded for the run.
+
+Build with the same Xcode options, changing the scheme to `DictateCleanupSpike`.
+Set `CLEANUP_MODEL_DIR` to the existing Qwen2.5 1.5B Instruct 4-bit directory and
+`MODEL_PYTHON` to a Python environment with the project's requirements installed:
+
+```sh
+timeout 15 "$MODEL_PYTHON" scripts/prepare_cleanup.py --model-path "$CLEANUP_MODEL_DIR"
+timeout 60 "$MODEL_PYTHON" scripts/run_cleanup_python.py \
+  fixtures/cleanup-prompts.json --model-path "$CLEANUP_MODEL_DIR" > results/cleanup-python.jsonl
+timeout 60 DerivedData/Build/Products/Release/DictateCleanupSpike \
+  "$CLEANUP_MODEL_DIR" fixtures/cleanup-prompts.json > results/cleanup-swift.jsonl
+"$MODEL_PYTHON" scripts/summarize_cleanup.py fixtures/cleanup-prompts.json \
+  results/cleanup-python.jsonl results/cleanup-swift.jsonl
+```
+
+Keep these runs sequential. Python uses the production `LocalModel` directly;
+neither inference runner uses the HTTP speech service. The summary applies the
+existing Python cleanup guard to both outputs afterward. This tests native
+model inference, not a Swift port of the guard or the whole cleanup pipeline.
+
+See [CLEANUP_RESULTS.md](CLEANUP_RESULTS.md) and `evidence/cleanup/` for results.
