@@ -1,0 +1,7 @@
+{
+  "production_engine_events": 12,
+  "cleanup_cases_exactly_match_python": 6,
+  "cleanup_cancellation_discarded": true,
+  "recognition_cancellation_discarded": true,
+  "live_replacements_and_invalid_reload_passed": true
+}

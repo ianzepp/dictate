@@ -1,0 +1,15 @@
+{
+  "new_model_status_lines": [
+    "Models speech=loading cleanup=loading",
+    "Models speech=ready cleanup=ready"
+  ],
+  "both_models_ready": true,
+  "app_pids": [
+    42865
+  ],
+  "one_app_process": true,
+  "speech_job_removed": true,
+  "port_8090_closed": true,
+  "signature_verified": true,
+  "no_profiling_runtime": true
+}

@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "requests": 4,
+  "events": [
+    {
+      "cleanup": "ready",
+      "cleanup_detail": "",
+      "event": "prepared",
+      "seconds": 0.2580279166722903,
+      "speech": "ready",
+      "speech_detail": ""
+    },
+    {
+      "event": "cleanup",
+      "id": "mixed-fallback",
+      "seconds": 0.004532583334366791,
+      "source": "we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today. um please run the tests.",
+      "text": "we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today. Please run the tests.",
+      "used": true
+    },
+    {
+      "event": "cleanup",
+      "id": "server-failure",
+      "seconds": 0.0014171250077197328,
+      "source": "keep our original draft today.",
+      "text": "keep our original draft today.",
+      "used": false
+    },
+    {
+      "event": "cleanup",
+      "id": "recovered",
+      "seconds": 0.0014115416706772521,
+      "source": "um hello there.",
+      "text": "Hello there.",
+      "used": true
+    }
+  ]
+}

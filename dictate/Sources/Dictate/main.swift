@@ -1,8 +1,25 @@
 import AppKit
 import AVFoundation
 import DictateCore
+import DictateInference
+import Foundation
 
 private let recentLimit = 5
+
+if CommandLine.arguments.dropFirst().first == "--check-config" {
+    guard CommandLine.arguments.count == 3 else {
+        FileHandle.standardError.write(Data("Usage: Dictate --check-config CONFIG\n".utf8))
+        Foundation.exit(2)
+    }
+    do {
+        _ = try ConfigFile.parse(String(contentsOfFile: CommandLine.arguments[2], encoding: .utf8))
+        FileHandle.standardOutput.write(Data("Config is valid\n".utf8))
+        Foundation.exit(0)
+    } catch {
+        FileHandle.standardError.write(Data("Config problem: \(error)\n".utf8))
+        Foundation.exit(1)
+    }
+}
 
 let app = NSApplication.shared
 let delegate = AppDelegate()
@@ -18,7 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let overlay = Overlay()
     /// Created at launch, which also repairs a volume left down by a crash.
     private let ducker = VolumeDucker()
-    private var config: ServiceConfig?
+    private var config: AppConfig?
+    private var engine: InferenceEngine?
+    private var inferenceTask: Task<Void, Never>?
+    private var prepareTask: Task<Void, Never>?
+    private var retryTimer: Timer?
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var tracker = HoldTracker()
@@ -30,9 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var holdPoll: Timer?
     /// Toggled by the lock key during a recording. While locked, the hold key is ignored.
     private var locked = false
-    /// The last /health answer. nil until the first check, and when the service does not answer.
-    private var health: ServiceHealth?
-    private var healthChecked = false
+    private var health: InferenceStatus?
     /// True while the card shows the idle state, so a health change may redraw it.
     private var showingIdle = false
     private var healthTimer: Timer?
@@ -51,8 +70,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setSymbol("mic")
         recorder.onLevel = { [weak self] level in self?.overlay.level(level) }
         overlay.onClose = { [weak self] in self?.cancel() }
-        healthTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+        healthTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.checkHealth()
+        }
+        retryTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.prepareModels()
         }
         loadConfig()
         PasteboardPutter.promptForAccessibility()
@@ -126,8 +148,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ?? (NSHomeDirectory() as NSString).appendingPathComponent(".config/dictate/config.toml")
         do {
             let text = try String(contentsOfFile: path, encoding: .utf8)
-            config = try ConfigFile.parse(text)
+            let parsed = try ConfigFile.parse(text)
+            config = parsed
+            engine = InferenceEngine(config: parsed, configURL: URL(fileURLWithPath: path))
             ready()
+            prepareModels()
             checkHealth()
         } catch {
             note("Config problem", detail: "\(error)", style: .problem)
@@ -196,6 +221,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             overlay.failed("Microphone access needed")
             return
         }
+        guard health?.speech.state == .ready else {
+            ready()
+            overlay.notice("Speech model is not ready")
+            return
+        }
         do {
             // Turn down first, so the first moment of the recording is quiet too.
             ducker.duck()
@@ -251,6 +281,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func cancel() {
         ducker.restore()
         session += 1
+        inferenceTask?.cancel()
+        inferenceTask = nil
         locked = false
         holdPoll?.invalidate()
         holdPoll = nil
@@ -294,37 +326,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             overlay.notice("Nothing heard")
             return
         }
-        guard let baseURL = config?.serviceURL else { return }
-        if config?.debugEnabled == true || !twoPass {
-            transcribeInSteps(wav: wav, baseURL: baseURL, cleanup: twoPass)
-        } else {
-            transcribeOnce(wav: wav, baseURL: baseURL)
-        }
+        transcribe(wav: wav, cleanup: twoPass)
     }
 
-    private func transcribeOnce(wav: Data, baseURL: String) {
-        busy = true
-        setSymbol("ellipsis.circle")
-        note("Transcribing", detail: nil, style: .working)
-        overlay.working()
-        let current = session
-        SpeechClient.transcribe(baseURL: baseURL, wav: wav) { [weak self] result in
-            DispatchQueue.main.async {
-                guard self?.session == current else { return }
-                self?.busy = false
-                self?.setSymbol("mic")
-                switch result {
-                case .success(let text):
-                    self?.deliver(text, stamp: nil)
-                case .failure(let error):
-                    self?.fail(error.localizedDescription)
-                }
-            }
-        }
-    }
-
-    /// Phase one, then phase two when `cleanup` is on, before the paste. With debug on, each step is saved.
-    private func transcribeInSteps(wav: Data, baseURL: String, cleanup: Bool) {
+    /// UI and debug writes stay on the main actor; the engine owns all model work.
+    private func transcribe(wav: Data, cleanup: Bool) {
+        guard let engine else { return }
         var trail: DebugTrail?
         if config?.debugEnabled == true {
             do {
@@ -341,46 +348,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         note("Transcribing", detail: nil, style: .working)
         overlay.working()
         let current = session
-        SpeechClient.recognize(baseURL: baseURL, wav: wav) { [weak self] result in
-            DispatchQueue.main.async {
-                guard self?.session == current else { return }
-                switch result {
-                case .failure(let error):
-                    try? trail?.write(name: "error.txt", text: "phase 1\n\(error.localizedDescription)\n")
-                    self?.busy = false
-                    self?.setSymbol("mic")
-                    self?.fail(error.localizedDescription)
-                case .success(let phase1):
-                    let phase1Text = "raw:\n\(phase1.raw)\n\nreplaced:\n\(phase1.replaced)\n"
-                    try? trail?.write(name: "02-phase1.txt", text: phase1Text)
-                    if phase1.replaced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        self?.busy = false
-                        self?.setSymbol("mic")
-                        self?.fail("Nothing heard", detail: "The recording had no speech in it")
-                        return
-                    }
-                    if !cleanup {
-                        self?.busy = false
-                        self?.setSymbol("mic")
-                        self?.deliver(phase1.replaced, stamp: trail?.stamp)
-                        return
-                    }
-                    SpeechClient.cleanup(baseURL: baseURL, text: phase1.replaced) { result2 in
-                        DispatchQueue.main.async {
-                            guard self?.session == current else { return }
-                            self?.busy = false
-                            self?.setSymbol("mic")
-                            switch result2 {
-                            case .failure(let error):
-                                try? trail?.write(name: "error.txt", text: "phase 2\n\(error.localizedDescription)\n")
-                                self?.fail(error.localizedDescription)
-                            case .success(let cleaned):
-                                try? trail?.write(name: "03-phase2.txt", text: cleaned + "\n")
-                                self?.deliver(cleaned, stamp: trail?.stamp)
-                            }
-                        }
-                    }
+        inferenceTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.session == current {
+                    self.busy = false
+                    self.inferenceTask = nil
+                    self.setSymbol("mic")
                 }
+            }
+            var phase = "recognition"
+            do {
+                let recognized = try await engine.recognize(wav: wav)
+                try Task.checkCancellation()
+                guard self.session == current else { return }
+                try? trail?.write(name: "02-phase1.txt",
+                    text: "raw:\n\(recognized.raw)\n\nreplaced:\n\(recognized.replaced)\n")
+                guard !recognized.replaced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    self.fail("Nothing heard", detail: "The recording had no speech in it")
+                    return
+                }
+                var text = recognized.replaced
+                if cleanup {
+                    phase = "cleanup"
+                    let result = try await engine.cleanup(text: text)
+                    try Task.checkCancellation()
+                    guard self.session == current else { return }
+                    text = result.text
+                    try? trail?.write(name: "03-phase2.txt", text: text + "\n")
+                }
+                try Task.checkCancellation()
+                guard self.session == current else { return }
+                self.deliver(text, stamp: trail?.stamp)
+            } catch is CancellationError {
+                try? trail?.write(name: "cancelled.txt", text: "Cancelled during \(phase)\n")
+            } catch {
+                guard self.session == current, !Task.isCancelled else { return }
+                try? trail?.write(name: "error.txt", text: "\(phase)\n\(error.localizedDescription)\n")
+                self.fail(error.localizedDescription)
             }
         }
     }
@@ -418,24 +423,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The idle card says whether dictation will work right now, from the last health check.
     private func ready() {
         let hold = "Hold \(keyName) to dictate"
-        if healthChecked, health == nil {
-            note("Speech service not running", detail: "See ~/Library/Logs/Dictate/stt.err.log", style: .problem)
-        } else if let speech = health?.speech, speech.state != "ready" {
+        if let speech = health?.speech, speech.state != .ready {
             switch speech.state {
-            case "downloading":
+            case .downloading:
                 note("Downloading speech model", detail: "Dictation works when it finishes", style: .working)
-            case "failed":
+            case .failed:
                 note("Speech model unavailable", detail: speech.detail, style: .problem)
             default:
                 note("Loading speech model", detail: "Dictation works in a moment", style: .working)
             }
+        } else if health == nil {
+            note("Loading speech model", detail: "Dictation works in a moment", style: .working)
         } else if !twoPass {
             note("Ready", detail: "\(hold). Single pass: no cleanup", style: .ready)
-        } else if let cleanup = health?.cleanup, ["failed", "unreachable"].contains(cleanup.state) {
+        } else if let cleanup = health?.cleanup, [.failed, .unreachable, .off].contains(cleanup.state) {
             note("Ready", detail: "\(hold). Cleanup is off: \(cleanup.detail)", style: .ready)
-        } else if health?.cleanup.state == "downloading" {
+        } else if health?.cleanup.state == .downloading {
             note("Ready", detail: "\(hold). The cleanup model is downloading", style: .ready)
-        } else if health?.cleanup.state == "loading" {
+        } else if health?.cleanup.state == .loading {
             note("Ready", detail: "\(hold). Cleanup starts in a moment", style: .ready)
         } else {
             note("Ready", detail: hold, style: .ready)
@@ -444,15 +449,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func checkHealth() {
-        guard let baseURL = config?.serviceURL else { return }
-        SpeechClient.health(baseURL: baseURL) { [weak self] reading in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                let changed = !self.healthChecked || reading != self.health
-                self.health = reading
-                self.healthChecked = true
-                if changed && self.showingIdle { self.ready() }
+        guard let engine else { return }
+        Task { @MainActor [weak self] in
+            let reading = await engine.status()
+            guard let self else { return }
+            let changed = reading != self.health
+            self.health = reading
+            if changed {
+                FileHandle.standardOutput.write(Data(
+                    "Models speech=\(reading.speech.state.rawValue) cleanup=\(reading.cleanup.state.rawValue)\n".utf8))
+                if self.showingIdle { self.ready() }
             }
+        }
+    }
+
+    private func prepareModels() {
+        guard prepareTask == nil, let engine else { return }
+        prepareTask = Task { @MainActor [weak self] in
+            await engine.prepare()
+            self?.prepareTask = nil
+            self?.checkHealth()
         }
     }
 
@@ -477,8 +493,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func quit() {
+        inferenceTask?.cancel()
+        prepareTask?.cancel()
         ducker.restoreNow()
         NSApp.terminate(nil)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        inferenceTask?.cancel()
+        prepareTask?.cancel()
+        ducker.restoreNow()
     }
 }
 

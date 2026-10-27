@@ -1,0 +1,5 @@
+[speech]
+model = "mlx-community/whisper-large-v3-turbo-4bit"
+language = "en"
+[cleanup]
+enabled = false

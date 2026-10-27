@@ -1,6 +1,6 @@
 # Dictate
 
-Hold a key, talk, let go. Dictate records your voice, turns it into text with a local Whisper model, tidies the text with a small local language model, and pastes it into whatever window you are typing in. Nothing leaves your Mac.
+Hold a key, talk, let go. Dictate records your voice, turns it into text with a local Whisper model, optionally tidies the text with a small local language model, and pastes it into whatever window you are typing in. Both models run natively inside the Mac app. Nothing leaves your Mac.
 
 ## Using it
 
@@ -50,73 +50,78 @@ Either key can be `fn`, `right_option`, `left_option`, `right_command`, `left_co
 
 A hold key you also type with, such as Option for accented letters, starts a recording each time you hold it. Nothing is pasted, because there is no speech, but the overlay briefly shows Nothing heard.
 
-If you keep Fn as the hold key, it needs one macOS setting; see setup step 6.
+If you keep Fn as the hold key, it needs one macOS setting; see setup step 5.
 
 Up to two cleanups happen between your voice and the paste. Your own `[replacements]` fix words Whisper keeps getting wrong. If you turn on two-pass cleanup in the menu, a small language model then fixes punctuation and drops filler words such as um. It works a few sentences at a time, and a check keeps it honest: it may drop fillers, stutters, and a few small words, but not a content word, a pronoun, or a negation. If the model fails, or a piece comes back changed, Dictate pastes that piece uncleaned and cleans the rest.
 
 ## How it fits together
 
-| Part | Port | What it runs | LaunchAgent |
-| --- | --- | --- | --- |
-| Speech service | 8090 | Whisper large-v3 turbo on MLX (`stt_server.py`) | `com.ianzepp.dictate.speech` |
-| Cleanup model | | Qwen2.5 1.5B Instruct on MLX, run inside the speech service | |
-| Menu-bar app | | `Dictate.app`: the hotkeys, the overlay, and the paste | `com.ianzepp.dictate` |
+`Dictate.app` owns the hotkeys, recording, Whisper large-v3 turbo, optional Qwen2.5
+1.5B cleanup, the overlay, and pasting. MLX runs the models on the Metal GPU away
+from the UI thread. Model access is serialized, and a cancelled request cannot
+paste its result.
 
-Both LaunchAgents start at login and restart if they stop.
+One LaunchAgent, `com.ianzepp.dictate`, starts the app at login and restarts it
+if it stops. There is no Python installation or local speech server to manage.
 
 ## Requirements
 
 - An Apple Silicon Mac on macOS 14 or newer.
-- Python 3.11 or newer.
-- Xcode Command Line Tools, for `swift`: `xcode-select --install`.
+- Xcode with Swift 6.2 or newer and its Metal toolchain, to build from source.
 - About 1.3 GB of disk for the two models.
 
 ## Setup
 
 Clone this repository, then run these from its root.
 
-1. Install the Python packages.
-
-   ```bash
-   python3 -m venv .venv
-   .venv/bin/pip install -r requirements.txt
-   ```
-
-2. Copy the config. The defaults work as they are.
+1. Copy the config. The defaults work as they are.
 
    ```bash
    mkdir -p ~/.config/dictate
    cp config.example.toml ~/.config/dictate/config.toml
    ```
 
-3. Make a signing certificate, once. macOS ties the Microphone, Input Monitoring, and Accessibility permissions to the app's signature. Without a stable certificate, every rebuild looks like a new app and you have to grant them again.
+2. Make a signing certificate, once. macOS ties the Microphone, Input Monitoring, and Accessibility permissions to the app's signature. Without a stable certificate, every rebuild looks like a new app and you have to grant them again.
 
    Open Keychain Access, then Keychain Access > Certificate Assistant > Create a Certificate. Name it `Dictate Local Code Sign`, set Identity Type to Self-Signed Root and Certificate Type to Code Signing, and create it in the login keychain.
 
-4. Build the app and start everything.
+3. Build and install the app.
 
    ```bash
    dictate/scripts/build-app.sh
    launchd/install.sh
    ```
 
-   `install.sh` checks the config, fills in this Mac's paths, and starts the speech service and the app. Set `PYTHON` before it if your Python lives somewhere else.
+   The build creates an inactive, signed candidate. `install.sh` validates it,
+   backs up the previous app and config, and switches the login job to it.
+   When upgrading from Python it removes the obsolete `speech.port` setting
+   and stops/removes the old speech LaunchAgent. Other config settings stay.
 
-   The first start downloads both models, about 1.3 GB, in about a minute on a fast connection. The menu-bar card shows Downloading speech model until dictation is ready; until the cleanup model follows, dictation pastes Whisper's text uncleaned.
+   If Xcode reports a missing Metal compiler, run
+   `xcodebuild -downloadComponent MetalToolchain` once, then build again.
 
-5. Grant permissions. macOS asks for Microphone access on first use. Add Dictate under System Settings > Privacy & Security > Input Monitoring, and again under Accessibility. Then restart the app:
+   The first start downloads both models, about 1.3 GB, if they are not already
+   present. The menu card shows Downloading speech model until dictation is
+   ready. Speech keeps working while cleanup downloads or is unavailable.
+
+4. Grant permissions. macOS asks for Microphone access on first use. Add Dictate under System Settings > Privacy & Security > Input Monitoring, and again under Accessibility. Then restart the app:
 
    ```bash
    launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate
    ```
 
-6. Free up the Fn key, if it is your hold key. In System Settings > Keyboard, set "Press 🌐 key to" to Do Nothing. Otherwise Fn also opens the emoji picker or Apple's dictation.
+5. Free up the Fn key, if it is your hold key. In System Settings > Keyboard, set "Press 🌐 key to" to Do Nothing. Otherwise Fn also opens the emoji picker or Apple's dictation.
 
 ## Config
 
-`~/.config/dictate/config.toml`. The speech service and the menu-bar app both read it. `config.example.toml` explains every setting.
+`~/.config/dictate/config.toml`. The app validates all settings.
+`config.example.toml` explains them. The reader supports single-level tables,
+single-line quoted strings, booleans, and comments. Unknown keys and duplicate
+settings are errors.
 
 - `[speech] model` and `[cleanup] model` take a Hugging Face name, downloaded on first start, or a path to files you already have.
+- Native models need MLX safetensors weights. Older Whisper repositories that contain only `weights.npz` are unsupported; the default 4-bit models use safetensors.
+- The default checkpoints are validated. Some older quantized Whisper variants also use a different embedding layout and cannot load in the current Swift SDK.
 - `[cleanup]` can instead point at a model server you already run, such as LM Studio or Ollama, with `url` and `name`. `enabled = false` skips cleanup.
 - `[hotkey] key` and `[hotkey] lock` choose the hold and lock keys. See [Hotkeys](#hotkeys).
 - `[replacements]` maps a phrase Whisper hears to the spelling you want, such as `"em el ex" = "MLX"`. These apply on the next dictation.
@@ -125,30 +130,30 @@ Clone this repository, then run these from its root.
 Everything except replacements applies after a restart:
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate.speech   # speech and cleanup models
-launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate          # hotkey, lock key, debug
+launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate
 ```
 
 ## Troubleshooting
 
-The menu-bar card says what is wrong and where to fix it. It checks the speech service every ten seconds and whenever you open the menu. Logs are in `~/Library/Logs/Dictate/`: `stt.err.log` for the speech service and both models, and `dictate.err.log` for the app.
+The menu card shows each model's download, load, or failure state. Failed model
+preparation retries every 30 seconds. Logs are in `~/Library/Logs/Dictate/`:
+`dictate.err.log` for errors and `dictate.out.log` for model readiness changes.
 
 - **Nothing happens when you hold Fn.** Dictate needs Input Monitoring. Grant it, then restart the app.
-- **Fn opens the emoji picker or Apple's dictation.** See setup step 6.
+- **Fn opens the emoji picker or Apple's dictation.** See setup step 5.
 - **The text is copied but not pasted.** Dictate needs Accessibility. Grant it, then restart the app.
-- **The permissions vanish after a rebuild.** The signing certificate is missing, and `build-app.sh` printed a warning. See setup step 3.
+- **The permissions vanish after a rebuild.** The signing certificate is missing, and `build-app.sh` printed a warning. See setup step 2.
 - **Background music shows up in the text.** Dictate turns the output volume down while recording, but some outputs, such as HDMI displays and some USB audio devices, have no volume macOS can change. Lower the music yourself, or use headphones.
 - **The volume stayed low.** If Dictate stopped in the middle of a dictation, it puts the volume back when it restarts, within about ten seconds. If you changed the volume since, it leaves yours alone.
 - **The first dictation after a restart is slow.** Metal compiles its kernels on first use. Later ones are fast.
-- **The card says Speech service not running.** Check `stt.err.log`. A broken config is the usual cause; `launchd/install.sh` checks it and says what is wrong.
-- **The card says Speech model unavailable.** The download failed, for example with no internet connection. It retries every 30 seconds.
-- **The card says Cleanup is off.** Dictation still works, but pastes Whisper's text uncleaned. The card says why: the cleanup model failed to download or load, which retries every 30 seconds, or the model server in `[cleanup] url` is not answering. Details are in `stt.err.log`.
+- **The card says Config problem.** Fix the named setting and restart. `launchd/install.sh` validates the file before replacing the app.
+- **The card says Speech model unavailable.** Check the configured path or internet connection and `dictate.err.log`. It retries every 30 seconds.
+- **The card says Cleanup is off.** Dictation still works with Whisper's text. Cleanup may be disabled, still downloading, unable to load, or unable to reach the server configured in `[cleanup] url`.
 
 ## Updating
 
 ```bash
 git pull
-.venv/bin/pip install -r requirements.txt
 dictate/scripts/build-app.sh
 launchd/install.sh
 ```
@@ -156,30 +161,42 @@ launchd/install.sh
 ## Uninstalling
 
 ```bash
-launchctl bootout gui/$(id -u)/com.ianzepp.dictate.speech
 launchctl bootout gui/$(id -u)/com.ianzepp.dictate
-rm ~/Library/LaunchAgents/com.ianzepp.dictate.speech.plist ~/Library/LaunchAgents/com.ianzepp.dictate.plist
+rm ~/Library/LaunchAgents/com.ianzepp.dictate.plist
 ```
 
 Then delete the models in `~/.local/share/dictate`, the logs in `~/Library/Logs/Dictate`, and the config in `~/.config/dictate`.
 
 ## Development
 
-Run the speech service in the foreground, and send it an audio file. It listens at once and readies both models in the background; `GET /health` reports progress.
+`DictateCore` owns config and cleanup rules. `DictateInference` owns model
+preparation, native inference and cancellation. The app owns recording and UI.
+`DictateVerify` exercises the same engine without a microphone or pasteboard.
 
 ```bash
-./start.sh
-.venv/bin/python transcribe.py audio.wav
+cd dictate
+xcodebuild -scheme DictateVerify -configuration Release -destination 'platform=macOS' \
+  -derivedDataPath .build/xcode -clonedSourcePackagesDirPath .build build CODE_SIGNING_ALLOWED=NO \
+  ENABLE_CODE_COVERAGE=NO CLANG_COVERAGE_MAPPING=NO
+.build/xcode/Build/Products/Release/DictateVerify ~/.config/dictate/config.toml audio.wav
 ```
 
-`download_model.py` fetches a model ahead of time, for example before going offline: `.venv/bin/python download_model.py mlx-community/Qwen2.5-1.5B-Instruct-4bit`. With no name it fetches the default speech model.
+Running `DictateVerify CONFIG` without an audio file prepares the configured
+models ahead of offline use. It prints model status and fails if preparation
+does not succeed.
 
 Tests:
 
 ```bash
-.venv/bin/python -m unittest discover -s tests
-cd dictate && swift test
+cd dictate
+xcodebuild test -scheme Dictate-Package -configuration Release -destination 'platform=macOS' \
+  -derivedDataPath .build/xcode -clonedSourcePackagesDirPath .build \
+  CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES
 ```
+
+The cleanup tests contain a frozen Python-derived corpus. The old implementation
+lives under `spikes/python-reference/` only as an experimental oracle, never as
+an app runtime. The original spike evidence remains under `spikes/swift-speech/`.
 
 ## License
 

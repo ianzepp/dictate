@@ -1,0 +1,10 @@
+{
+  "workspace" : {
+    "name" : "Dictate",
+    "schemes" : [
+      "Dictate",
+      "Dictate-Package",
+      "DictateVerify"
+    ]
+  }
+}

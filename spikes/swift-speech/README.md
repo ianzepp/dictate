@@ -1,5 +1,9 @@
 # Native Swift inference spikes
 
+These are the original isolated experiments. The app now uses the production
+`DictateInference` module; see the repository README and native delivery record.
+The Python oracle used below is archived in `spikes/python-reference/`.
+
 Question: can a native Swift executable use Dictate's existing 4-bit Whisper
 large-v3-turbo weights, with useful output and latency, without Python?
 The follow-up also tests the existing Qwen2.5 1.5B 4-bit cleanup weights.
@@ -38,7 +42,7 @@ python3 scripts/summarize.py results/python.json results/swift.jsonl
 ```
 
 `timeout` is supplied by GNU coreutils. The Python baseline requires Dictate's
-existing service at port 8090; the Swift command uses local weights directly
+historical reference service at port 8090; the Swift command uses local weights directly
 and requires no Python service. Do not run both inference commands concurrently.
 The Swift command requests the GPU and reports the selected device in each row.
 

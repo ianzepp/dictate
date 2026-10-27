@@ -1,0 +1,43 @@
+# Dictate config. The speech service and the menu-bar app both read this file.
+# Replacements apply on the next utterance. Everything else applies after a restart:
+#   launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate.speech  (speech and cleanup)
+#   launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate         (hotkey, debug)
+
+[speech]
+# A Hugging Face name, downloaded to ~/.local/share/dictate/models on first start,
+# or the path to a model folder you already have.
+model = "mlx-community/whisper-large-v3-turbo-4bit"
+language = "en"
+port = 8090
+
+[cleanup]
+# A small language model fixes punctuation and filler words after speech.
+# Set enabled = false to paste the speech text as heard.
+enabled = true
+
+# Dictate runs this MLX model itself. Use a Hugging Face name, downloaded to
+# ~/.local/share/dictate/models on first start, or the path to a model folder.
+model = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
+
+# Or use a model server you already run, such as LM Studio, Ollama, or llama.cpp.
+# Remove model above, then set its OpenAI-compatible URL and the model's name there:
+# url = "http://127.0.0.1:1234/v1"
+# name = "qwen2.5-7b-instruct"
+# For a reasoning model, "none" skips thinking. Leave empty otherwise.
+# reasoning_effort = "none"
+
+[hotkey]
+# Fn needs System Settings > Keyboard > "Press 🌐 key to" set to Do Nothing.
+# Names: fn, right_option, left_option, right_command, left_command, right_control, right_shift
+key = "fn"
+# While holding the key, press this one too to keep listening after you let go.
+# Press it again to unlock: a held key goes back to a normal hold, otherwise it
+# transcribes. "none" turns it off.
+lock = "right_option"
+
+[debug]
+# Saves each dictation under ~/Library/Logs/Dictate/debug/<timestamp>/.
+enabled = false
+
+[replacements]
+# "heard phrase" = "Canonical Form"

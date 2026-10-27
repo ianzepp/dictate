@@ -1,0 +1,1 @@
+{"cleanup":"off","cleanup_detail":"Turned off in the config","event":"prepared","seconds":4.2551691249973373,"speech":"failed","speech_detail":"Key model.decoder.embed_tokens.scales not found in WhisperModel.WhisperSubmodels.WhisperDecoder.QuantizedEmbedding"}

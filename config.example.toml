@@ -1,21 +1,19 @@
-# Dictate config. The speech service and the menu-bar app both read this file.
+# Dictate config. Both models run inside the menu-bar app.
 # Replacements apply on the next utterance. Everything else applies after a restart:
-#   launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate.speech  (speech and cleanup)
-#   launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate         (hotkey, debug)
+#   launchctl kickstart -k gui/$(id -u)/com.ianzepp.dictate
 
 [speech]
 # A Hugging Face name, downloaded to ~/.local/share/dictate/models on first start,
 # or the path to a model folder you already have.
 model = "mlx-community/whisper-large-v3-turbo-4bit"
 language = "en"
-port = 8090
 
 [cleanup]
 # A small language model fixes punctuation and filler words after speech.
 # Set enabled = false to paste the speech text as heard.
 enabled = true
 
-# Dictate runs this MLX model itself. Use a Hugging Face name, downloaded to
+# Dictate runs this native MLX model itself. Use a Hugging Face name, downloaded to
 # ~/.local/share/dictate/models on first start, or the path to a model folder.
 model = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
 

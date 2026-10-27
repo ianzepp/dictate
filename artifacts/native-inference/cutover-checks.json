@@ -1,0 +1,7 @@
+{
+  "downloaded_model_sha256": "e2d6146b49644c13ed7467060d3c43c402bbdfca1f01f1c21f6fbeda23b6567e",
+  "matches_original_spike_checkpoint": true,
+  "speech_job_removed": true,
+  "port_8090_closed": true,
+  "code_signature_verified": true
+}

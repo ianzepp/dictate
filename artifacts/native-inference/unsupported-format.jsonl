@@ -1,0 +1,1 @@
+{"cleanup":"off","cleanup_detail":"Turned off in the config","event":"prepared","seconds":3.1201633333403151,"speech":"failed","speech_detail":"Model folder has no safetensors weights: \/Users\/ianzepp\/.local\/share\/dictate\/models\/.mlx-community--whisper-tiny-mlx.incomplete"}

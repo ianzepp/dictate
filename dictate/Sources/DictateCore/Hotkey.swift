@@ -4,7 +4,7 @@
 /// The modifier bit is the one that is set only while this key is down: the
 /// device-dependent bit from IOKit's NX_DEVICE* masks for a sided key, and the
 /// secondary-Fn bit for Fn. Both NSEvent and CGEventSource flags carry them.
-public struct HotkeySpec: Equatable {
+public struct HotkeySpec: Equatable, Sendable {
     public var name: String
     public var keyCode: UInt16
     public var modifierBit: UInt

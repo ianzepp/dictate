@@ -2,65 +2,6 @@ import DictateCore
 import XCTest
 
 final class CoreTests: XCTestCase {
-    func testExampleConfig() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let text = try String(contentsOf: root.appendingPathComponent("config.example.toml"), encoding: .utf8)
-        let config = try ConfigFile.parse(text)
-        XCTAssertEqual(config.serviceURL, "http://127.0.0.1:8090")
-        XCTAssertEqual(config.hotkey, HotkeySpec.named("fn"))
-        XCTAssertEqual(config.hotkey.keyCode, 0x3F)
-        XCTAssertEqual(config.hotkey.modifierBit, 1 << 23)
-        XCTAssertEqual(config.lockKey, HotkeySpec.named("right_option"))
-        XCTAssertFalse(config.debugEnabled)
-    }
-
-    func testReadsOnlyWhatTheAppUses() throws {
-        let text = """
-        [speech]
-        model = "owner/model"
-        port = 9100
-
-        [cleanup]
-        enabled = false
-        future_key = [1, 2]
-
-        [hotkey]
-        key = "right_option"
-
-        [debug]
-        enabled = true
-
-        [replacements]
-        "em el ex" = "MLX"
-        """
-        let config = try ConfigFile.parse(text)
-        XCTAssertEqual(config.serviceURL, "http://127.0.0.1:9100")
-        XCTAssertEqual(config.hotkey, HotkeySpec.named("right_option"))
-        XCTAssertTrue(config.debugEnabled)
-    }
-
-    func testRightOptionToTalkRightCommandToLock() throws {
-        let config = try ConfigFile.parse("[hotkey]\nkey = \"right_option\"\nlock = \"right_command\"\n")
-        XCTAssertEqual(config.hotkey, HotkeySpec.named("right_option"))
-        XCTAssertEqual(config.lockKey, HotkeySpec.named("right_command"))
-    }
-
-    func testDefaultsAndBadValues() throws {
-        let empty = try ConfigFile.parse("[speech]\nmodel = \"a/b\"\n")
-        XCTAssertEqual(empty.speechPort, ConfigFile.defaultSpeechPort)
-        XCTAssertEqual(empty.hotkey, HotkeySpec.named("fn"))
-        XCTAssertThrowsError(try ConfigFile.parse("[hotkey]\nkey = \"f13\"\n"))
-        XCTAssertThrowsError(try ConfigFile.parse("[speech]\nport = 80\n"))
-        XCTAssertNil(try ConfigFile.parse("[hotkey]\nlock = \"none\"\n").lockKey)
-        XCTAssertNil(try ConfigFile.parse("[hotkey]\nkey = \"right_option\"\n").lockKey)
-        XCTAssertThrowsError(try ConfigFile.parse("[hotkey]\nkey = \"right_option\"\nlock = \"right_option\"\n"))
-        XCTAssertThrowsError(try ConfigFile.parse("[debug]\nenabled = \"yes\"\n"))
-    }
-
     func testHoldFollowsTheKeyBit() {
         var tracker = HoldTracker()
         let spec = HotkeySpec.named("right_option")!
@@ -97,15 +38,6 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(Speech.voicedSeconds(talk), 0.5, accuracy: 0.03)
     }
 
-    func testHealthParse() {
-        let body = Data(#"{"status":"ok","speech":{"state":"downloading","detail":"Downloading a/b"},"cleanup":{"state":"missing","detail":"llama-server missing"}}"#.utf8)
-        let health = ServiceHealth.parse(body)
-        XCTAssertEqual(health?.speech, .init(state: "downloading", detail: "Downloading a/b"))
-        XCTAssertEqual(health?.cleanup.state, "missing")
-        // An older service without the state fields reads as unknown, not as healthy.
-        XCTAssertNil(ServiceHealth.parse(Data(#"{"status":"ok"}"#.utf8)))
-    }
-
     func testDuckSilencesAndRespectsTheUser() {
         XCTAssertEqual(Duck.level(from: 0.5), 0)
         XCTAssertTrue(Duck.shouldRestore(current: 0.0625, ducked: 0.0625))
@@ -138,11 +70,4 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(data[34], 16) // bits per sample
     }
 
-    func testMultipartContainsPayload() {
-        let body = Multipart.body(filename: "dictation.wav", mime: "audio/wav", payload: Data([1, 2, 3]), boundary: "BOUND")
-        let text = String(decoding: body, as: UTF8.self)
-        XCTAssertTrue(text.contains("name=\"audio_file\""))
-        XCTAssertTrue(text.contains("filename=\"dictation.wav\""))
-        XCTAssertTrue(body.contains(Data([1, 2, 3])))
-    }
 }

@@ -1,0 +1,316 @@
+{
+  "base_commit": "83993ddc40f4be14e859665c8f93c5e1d735d4ab",
+  "app_version": "0.2.0",
+  "swift_tests": 35,
+  "swift_failures": 0,
+  "golden_drift_cases": 617,
+  "golden_matcher_cases": 610,
+  "final_engine_events": 12,
+  "cleanup_cases_match_python": 6,
+  "cancellation_paths_passed": 2,
+  "live_reload_and_last_good_passed": true,
+  "installed": {
+    "new_model_status_lines": [
+      "Models speech=loading cleanup=loading",
+      "Models speech=ready cleanup=ready"
+    ],
+    "both_models_ready": true,
+    "app_pids": [
+      42865
+    ],
+    "one_app_process": true,
+    "speech_job_removed": true,
+    "port_8090_closed": true,
+    "signature_verified": true,
+    "no_profiling_runtime": true
+  },
+  "app_executable_sha256": "01075cd75473e6d1231933b0bb1697a7a428519c13a86fdfdf02086a3a28fec5",
+  "source_sha256": {
+    "dictate/Sources/Dictate/DebugTrail.swift": "c80d839aed0ff56851accfcc66e7d7a8e38d7a642f7726d393495e8bdb494ae4",
+    "dictate/Sources/Dictate/Overlay.swift": "8cd6c11652245bdc0517a4d914d76f62de714161c7d2118286533500db4a8086",
+    "dictate/Sources/Dictate/Paste.swift": "c22e7c9cde22a2bac0c94bd522d799ace909016294067e0201ec283a6df7b776",
+    "dictate/Sources/Dictate/RecentTranscriptView.swift": "c8adc52989f9f28f857fec1ef4193b00852cb1fb4c9e26684996e5dc26177d66",
+    "dictate/Sources/Dictate/Recorder.swift": "0147fffcb5442834eab3873e80f39507cc53849571d37424370c0c918b66fb1c",
+    "dictate/Sources/Dictate/StatusRowView.swift": "d25ecfc407b8950cc4d6af349bb74338f6ca4873f23b0ba615bf34631903e145",
+    "dictate/Sources/Dictate/VolumeDucker.swift": "8284fd1e973a5c4dcac1a58dcba1263a07858fa56ae28ab9c8ef984b020c27a3",
+    "dictate/Sources/Dictate/main.swift": "d1706083156a869764a53d07a443514ac77438d94b2c5855070be260a128dca9",
+    "dictate/Sources/DictateCore/CleanupRules.swift": "46768dcb78aa8720b4856c988761ea87fe834ead99a790a939118bed70ef4882",
+    "dictate/Sources/DictateCore/ConfigFile.swift": "ccb7b6a1a19b607eec43de569cc99747390378a94c75c1605cbd6550417e6a42",
+    "dictate/Sources/DictateCore/Duck.swift": "5f59102efbea026ddaee838187fa63b188314011c1b354a674dc9b2f6ae4a897",
+    "dictate/Sources/DictateCore/Health.swift": "75d0ab422df6b213871e03ec8a43c933659176514482bc02ff80d87a8d6cb092",
+    "dictate/Sources/DictateCore/Hotkey.swift": "de2197e01ff64ffc28c99f4635c2fc6302c9220f0b3d0833ccdbd217d739dca7",
+    "dictate/Sources/DictateCore/MenuPreview.swift": "1a2bbc5f3efb8652b84675d343b4f7d7bd621a443c5699527b30ed3cce2770c7",
+    "dictate/Sources/DictateCore/SequenceMatcher.swift": "f2d623f64ed5fb61b3cff2d1ef7a963153f6365469d79d68681a7f1ec36ce82a",
+    "dictate/Sources/DictateCore/Speech.swift": "d829f9fad52549934eadae5d9b62ce7d4fc1b825476202c8c27b685a6937f27b",
+    "dictate/Sources/DictateCore/Wav.swift": "0d523f1a68fdb9f262676487a1a2c5efa60e8633a40a6d23b5f6155643c148f7",
+    "dictate/Sources/DictateInference/InferenceEngine.swift": "1bf99819751d07143aa462b80720566fe6ddbb2e5346eb08a73ade7867f536db",
+    "dictate/Sources/DictateInference/LocalTokenizer.swift": "abe45a55fb08ebd0c67e069fbeb765491607f049417a79f1142dd71d9ae1e3f1",
+    "dictate/Sources/DictateInference/ModelResolver.swift": "865e88ec66772bf017d482c4347b9f6d9cf622dd420548ccdffcadfa8fda43ee",
+    "dictate/Sources/DictateInference/SerialGate.swift": "76b5cf9a5dc2419100e93da132bb2d1874788b934443e504d3fa1920a01b9be7",
+    "dictate/Sources/DictateVerify/main.swift": "b7a8454150367a93917403bb646ea24d55ef93dd00577b6b70c2bb2f80047566",
+    "dictate/Info.plist": "fe489e2279d0e46cd32d821198b577008b76d5dcc918c339c158f183f20786b7",
+    "dictate/scripts/build-app.sh": "6c28d42552b74b85a0eb1346294cdebebc8bce6a161834a0bb7b4eb184487258",
+    "launchd/install.sh": "0bc6e21b85acf1cd0c620d85f46c46c9eb50f11e1d7331c3931fd70ecea5208b"
+  },
+  "pins": [
+    {
+      "identity": "eventsource",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/mattt/EventSource.git",
+      "state": {
+        "revision": "86b5096ac59ab46e66bd1f6377c604bc1dab0bc2",
+        "version": "1.5.1"
+      }
+    },
+    {
+      "identity": "mlx-audio-swift",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/Blaizzy/mlx-audio-swift.git",
+      "state": {
+        "revision": "fe2c182f4da8115fe2b6b99c9a4d2048fbf9b1e6"
+      }
+    },
+    {
+      "identity": "mlx-swift",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/ml-explore/mlx-swift",
+      "state": {
+        "revision": "19601207e9a0de51e03ee6ec0c3c5f3784275075",
+        "version": "0.32.3"
+      }
+    },
+    {
+      "identity": "mlx-swift-lm",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/ml-explore/mlx-swift-lm.git",
+      "state": {
+        "revision": "efcedcd4cd245eb03b65050a6bd2c103d7252d42"
+      }
+    },
+    {
+      "identity": "swift-asn1",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-asn1.git",
+      "state": {
+        "revision": "3b6410f7dee09eb33cdd26260c5fd47fda19b0e2",
+        "version": "1.7.3"
+      }
+    },
+    {
+      "identity": "swift-collections",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-collections.git",
+      "state": {
+        "revision": "f96b909e1a9e469620bc5037c1e24e00153f376f",
+        "version": "1.7.5"
+      }
+    },
+    {
+      "identity": "swift-crypto",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-crypto.git",
+      "state": {
+        "revision": "da9d28d69ebe3894b18376c8f2395c2f37b8448f",
+        "version": "4.5.2"
+      }
+    },
+    {
+      "identity": "swift-huggingface",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/huggingface/swift-huggingface.git",
+      "state": {
+        "revision": "f0a0cb43cb1b402d2bbf6fb10d8981328c449c48",
+        "version": "0.13.0"
+      }
+    },
+    {
+      "identity": "swift-jinja",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/huggingface/swift-jinja.git",
+      "state": {
+        "revision": "1e4d0dc69f7ec1277131fb3853808229c5991825",
+        "version": "2.5.2"
+      }
+    },
+    {
+      "identity": "swift-numerics",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-numerics",
+      "state": {
+        "revision": "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
+        "version": "1.1.1"
+      }
+    },
+    {
+      "identity": "swift-syntax",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/swiftlang/swift-syntax.git",
+      "state": {
+        "revision": "79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
+        "version": "603.0.2"
+      }
+    },
+    {
+      "identity": "swift-transformers",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/huggingface/swift-transformers.git",
+      "state": {
+        "revision": "48473106a93b2d8dfb114b82f0628ebbb71734e7",
+        "version": "1.3.5"
+      }
+    },
+    {
+      "identity": "yyjson",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/ibireme/yyjson.git",
+      "state": {
+        "revision": "8b4a38dc994a110abaec8a400615567bd996105f",
+        "version": "0.12.0"
+      }
+    },
+    {
+      "identity": "zstd",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/facebook/zstd.git",
+      "state": {
+        "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "version": "1.5.7"
+      }
+    }
+  ],
+  "commands": {
+    "dependency_resolution": {
+      "log": "resolve.log",
+      "timings": [
+        "real 111.83",
+        "user 20.44",
+        "sys 7.09"
+      ],
+      "result": []
+    },
+    "first_release_build": {
+      "log": "build.log",
+      "timings": [
+        "real 142.57",
+        "user 756.66",
+        "sys 41.69"
+      ],
+      "result": [
+        "** BUILD SUCCEEDED **"
+      ]
+    },
+    "integrated_tests": {
+      "log": "tests.log",
+      "timings": [
+        "real 110.02",
+        "user 356.77",
+        "sys 14.82"
+      ],
+      "result": [
+        "** TEST SUCCEEDED **"
+      ]
+    },
+    "verifier_release_build": {
+      "log": "build-verify-release.log",
+      "timings": [
+        "real 17.08",
+        "user 21.67",
+        "sys 4.42"
+      ],
+      "result": [
+        "** BUILD SUCCEEDED **"
+      ]
+    },
+    "final_release_package": {
+      "log": "package-uninstrumented.log",
+      "timings": [
+        "real 134.87",
+        "user 685.44",
+        "sys 36.99"
+      ],
+      "result": [
+        "** BUILD SUCCEEDED **"
+      ]
+    },
+    "final_install": {
+      "log": "install-metadata.log",
+      "timings": [
+        "real 0.26",
+        "user 0.04",
+        "sys 0.04"
+      ],
+      "result": []
+    },
+    "final_integration": {
+      "log": "integration-release-time.txt",
+      "timings": [
+        "real 9.14",
+        "user 3.44",
+        "sys 3.24"
+      ],
+      "result": []
+    },
+    "fresh_default_model_download": {
+      "log": "fresh-download-time.txt",
+      "timings": [
+        "real 43.72",
+        "user 1.50",
+        "sys 1.17"
+      ],
+      "result": []
+    },
+    "final_metadata_package": {
+      "log": "package-final-metadata.log",
+      "timings": [
+        "real 19.83",
+        "user 24.41",
+        "sys 5.71"
+      ],
+      "result": [
+        "** BUILD SUCCEEDED **"
+      ]
+    }
+  },
+  "validation_limit": "Synthetic fixtures exercise the production engine. Live microphone/hotkey/paste interaction was not exercised automatically.",
+  "test_scope": "35-unit-test run preceded the vocabulary-based download correction; the changed downloader was validated with a fresh default-model download, and the full production-engine fixture run was repeated on the final uninstrumented Release code.",
+  "archived_reference_tests": 44,
+  "no_new_profile_files": true,
+  "external_cleanup_contract": {
+    "passed": true,
+    "requests": 4,
+    "events": [
+      {
+        "cleanup": "ready",
+        "cleanup_detail": "",
+        "event": "prepared",
+        "seconds": 0.2580279166722903,
+        "speech": "ready",
+        "speech_detail": ""
+      },
+      {
+        "event": "cleanup",
+        "id": "mixed-fallback",
+        "seconds": 0.004532583334366791,
+        "source": "we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today. um please run the tests.",
+        "text": "we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today we should not merge this branch today. Please run the tests.",
+        "used": true
+      },
+      {
+        "event": "cleanup",
+        "id": "server-failure",
+        "seconds": 0.0014171250077197328,
+        "source": "keep our original draft today.",
+        "text": "keep our original draft today.",
+        "used": false
+      },
+      {
+        "event": "cleanup",
+        "id": "recovered",
+        "seconds": 0.0014115416706772521,
+        "source": "um hello there.",
+        "text": "Hello there.",
+        "used": true
+      }
+    ]
+  }
+}

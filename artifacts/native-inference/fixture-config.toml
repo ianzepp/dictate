@@ -1,0 +1,6 @@
+[speech]
+model = "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+language = "en"
+[cleanup]
+model = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
+[replacements]
