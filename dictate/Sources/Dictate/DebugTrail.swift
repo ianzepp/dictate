@@ -27,6 +27,6 @@ struct DebugTrail {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = .current
         formatter.dateFormat = "yyyyMMdd-HHmmss"
-        return formatter.string(from: Date())
+        return formatter.string(from: Date()) + "-" + UUID().uuidString
     }
 }
