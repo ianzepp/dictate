@@ -12,6 +12,7 @@ import Foundation
 final class VolumeDucker {
     private struct Session {
         let device: AudioObjectID
+        let uid: String?
         /// The user's volume before the first press.
         let original: Float32
         /// What Dictate last set, read back from the device.
@@ -31,16 +32,12 @@ final class VolumeDucker {
     func duck() {
         if session == nil {
             guard let device = Self.defaultOutput(),
-                  Self.isSettable(device),
-                  let volume = Self.volume(device), volume > 0.001
+                Self.isSettable(device),
+                let volume = Self.volume(device), volume > 0.001
             else { return }
-            session = Session(device: device, original: volume, lastSet: volume)
-            if let uid = Self.uid(device) {
-                UserDefaults.standard.set(
-                    ["uid": uid, "volume": volume, "ducked": Duck.level(from: volume)],
-                    forKey: Self.defaultsKey
-                )
-            }
+            let current = Session(device: device, uid: Self.uid(device), original: volume, lastSet: volume)
+            session = current
+            UserDefaults.standard.set(Self.recoveryEntry(current), forKey: Self.defaultsKey)
         }
         guard let session else { return }
         fade(to: Duck.level(from: session.original), over: Duck.fadeDown) {}
@@ -75,22 +72,24 @@ final class VolumeDucker {
     private func fade(to target: Float32, over duration: Double, then done: @escaping () -> Void) {
         timer?.invalidate()
         guard let start = session?.lastSet else { return }
-        let began = Date()
+        let began = ProcessInfo.processInfo.systemUptime
         let timer = Timer(timeInterval: 0.015, repeats: true) { [weak self] timer in
             guard let self, var session = self.session else {
                 timer.invalidate()
                 return
             }
-            guard let now = Self.volume(session.device), Duck.shouldRestore(current: now, ducked: session.lastSet) else {
+            guard let now = Self.volume(session.device), Duck.shouldRestore(current: now, ducked: session.lastSet)
+            else {
                 // The user moved the volume; leave it where they put it.
                 self.finish()
                 return
             }
-            let elapsed = Date().timeIntervalSince(began)
+            let elapsed = ProcessInfo.processInfo.systemUptime - began
             let value = Duck.fade(from: start, to: target, elapsed: elapsed, duration: duration)
             if Self.setVolume(session.device, value), let readBack = Self.volume(session.device) {
                 session.lastSet = readBack
                 self.session = session
+                UserDefaults.standard.set(Self.recoveryEntry(session), forKey: Self.defaultsKey)
             }
             if elapsed >= duration {
                 timer.invalidate()
@@ -104,14 +103,19 @@ final class VolumeDucker {
         timer.fire()
     }
 
+    private static func recoveryEntry(_ session: Session) -> [String: Any]? {
+        guard let uid = session.uid else { return nil }
+        return ["uid": uid, "volume": session.original, "ducked": session.lastSet]
+    }
+
     private func recoverAfterCrash() {
         guard let entry = UserDefaults.standard.dictionary(forKey: Self.defaultsKey) else { return }
         UserDefaults.standard.removeObject(forKey: Self.defaultsKey)
         guard let uid = entry["uid"] as? String,
-              let volume = (entry["volume"] as? NSNumber)?.floatValue,
-              let ducked = (entry["ducked"] as? NSNumber)?.floatValue,
-              let device = Self.defaultOutput(), Self.uid(device) == uid,
-              let now = Self.volume(device), Duck.shouldRestore(current: now, ducked: ducked)
+            let volume = (entry["volume"] as? NSNumber)?.floatValue,
+            let ducked = (entry["ducked"] as? NSNumber)?.floatValue,
+            let device = Self.defaultOutput(), Self.uid(device) == uid,
+            let now = Self.volume(device), Duck.shouldRestore(current: now, ducked: ducked)
         else { return }
         _ = Self.setVolume(device, volume)
     }
@@ -132,7 +136,8 @@ final class VolumeDucker {
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device)
+        let status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device)
         return status == noErr && device != 0 ? device : nil
     }
 
