@@ -4,16 +4,19 @@
 # without changing production visibility or accessing the real microphone/logs.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TEMP="$(mktemp -d /private/tmp/dictate-app-checks.XXXXXX)"
-trap '/bin/rm -r "$TEMP"' EXIT
+CHECK_DIR="$(mktemp -d /private/tmp/dictate-app-checks.XXXXXX)"
+trap '/bin/rm -r "$CHECK_DIR"' EXIT
 
-check_debug_trail() {
-    cat "$ROOT/Sources/Dictate/DebugTrail.swift" "$ROOT/Tests/AppChecks/DebugTrailChecks.swift" > "$TEMP/Check.swift"
-    swiftc -parse-as-library "$TEMP/Check.swift" -o "$TEMP/check"
-    "$TEMP/check"
+check_helper() {
+    local check_name="$1" primary_source="$2"
+    cat "$ROOT/Sources/Dictate/$primary_source" "$ROOT/Tests/AppChecks/${check_name}Checks.swift" > "$CHECK_DIR/Check.swift"
+    swiftc -parse-as-library "$CHECK_DIR/Check.swift" -o "$CHECK_DIR/check"
+    "$CHECK_DIR/check"
 }
 
 case "${1:-all}" in
-    all|DebugTrail) check_debug_trail ;;
-    *) echo "Usage: $0 [all|DebugTrail]" >&2; exit 2 ;;
+    all) check_helper DebugTrail DebugTrail.swift; check_helper Pasteboard Paste.swift ;;
+    DebugTrail) check_helper DebugTrail DebugTrail.swift ;;
+    Pasteboard) check_helper Pasteboard Paste.swift ;;
+    *) echo "Usage: $0 [all|DebugTrail|Pasteboard]" >&2; exit 2 ;;
 esac
