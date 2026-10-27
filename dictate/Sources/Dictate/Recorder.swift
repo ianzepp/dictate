@@ -16,7 +16,7 @@ enum RecorderError: LocalizedError {
     }
 }
 
-/// One hold of the key: the upload, and whether anyone spoke.
+/// One hold of the key: its WAV data and whether anyone spoke.
 struct Recording {
     let wav: Data
     let hasSpeech: Bool
@@ -39,14 +39,14 @@ final class Recorder {
         chunks.removeAll()
         lock.unlock()
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
-            guard let copy = Self.copy(buffer) else { return }
-            if let onLevel = self?.onLevel {
+            guard let self, let copy = Self.copy(buffer) else { return }
+            if let onLevel = self.onLevel {
                 let level = Self.level(copy)
                 DispatchQueue.main.async { onLevel(level) }
             }
-            self?.lock.lock()
-            self?.chunks.append(copy)
-            self?.lock.unlock()
+            self.lock.lock()
+            self.chunks.append(copy)
+            self.lock.unlock()
         }
         engine.prepare()
         do {
@@ -89,33 +89,31 @@ final class Recorder {
     private static func copy(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
         let frames = Int(buffer.frameLength)
         guard frames > 0,
-              let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameLength)
+            let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameLength)
         else { return nil }
         copy.frameLength = buffer.frameLength
-        let channels = Int(buffer.format.channelCount)
-        if let src = buffer.floatChannelData, let dst = copy.floatChannelData {
-            for channel in 0..<channels {
-                dst[channel].update(from: src[channel], count: frames)
-            }
-            return copy
+        let sources = UnsafeMutableAudioBufferListPointer(buffer.mutableAudioBufferList)
+        let destinations = UnsafeMutableAudioBufferListPointer(copy.mutableAudioBufferList)
+        guard sources.count == destinations.count else { return nil }
+        for (source, destination) in zip(sources, destinations) {
+            guard let sourceData = source.mData, let destinationData = destination.mData,
+                source.mDataByteSize >= destination.mDataByteSize
+            else { return nil }
+            destinationData.copyMemory(from: sourceData, byteCount: Int(destination.mDataByteSize))
         }
-        if let src = buffer.int16ChannelData, let dst = copy.int16ChannelData {
-            for channel in 0..<channels {
-                dst[channel].update(from: src[channel], count: frames)
-            }
-            return copy
-        }
-        return nil
+        return copy
     }
 
     private static func samples16kMono(_ buffers: [AVAudioPCMBuffer]) throws -> [Int16] {
         guard let first = buffers.first else { return [] }
-        guard let outFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: 16000,
-            channels: 1,
-            interleaved: false
-        ) else { throw RecorderError.convert("Could not build 16 kHz format") }
+        guard
+            let outFormat = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: 16000,
+                channels: 1,
+                interleaved: false
+            )
+        else { throw RecorderError.convert("Could not build 16 kHz format") }
         guard let converter = AVAudioConverter(from: first.format, to: outFormat) else {
             throw RecorderError.convert("Could not convert microphone audio")
         }
@@ -124,7 +122,9 @@ final class Recorder {
         floats.reserveCapacity(16000 * 30)
         let chunk = AVAudioFrameCount(4096)
         while true {
-            guard let out = AVAudioPCMBuffer(pcmFormat: outFormat, frameCapacity: chunk) else { break }
+            guard let out = AVAudioPCMBuffer(pcmFormat: outFormat, frameCapacity: chunk) else {
+                throw RecorderError.convert("Could not allocate converted audio")
+            }
             var error: NSError?
             let status = converter.convert(to: out, error: &error) { _, outStatus in
                 feed.next(outStatus)
@@ -133,7 +133,8 @@ final class Recorder {
             if out.frameLength > 0, let channel = out.floatChannelData {
                 floats.append(contentsOf: UnsafeBufferPointer(start: channel[0], count: Int(out.frameLength)))
             }
-            if status == .endOfStream || status == .error { break }
+            if status == .error { throw RecorderError.convert("Audio conversion failed") }
+            if status == .endOfStream { break }
         }
         return floats.map { sample in
             let clamped = max(-1, min(1, sample))

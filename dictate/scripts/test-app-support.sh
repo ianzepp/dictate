@@ -10,13 +10,21 @@ trap '/bin/rm -r "$CHECK_DIR"' EXIT
 check_helper() {
     local check_name="$1" primary_source="$2"
     cat "$ROOT/Sources/Dictate/$primary_source" "$ROOT/Tests/AppChecks/${check_name}Checks.swift" > "$CHECK_DIR/Check.swift"
-    swiftc -parse-as-library "$CHECK_DIR/Check.swift" -o "$CHECK_DIR/check"
+    if [ "$check_name" = Recorder ]; then
+        swiftc -emit-library -emit-module -module-name DictateCore "$ROOT"/Sources/DictateCore/*.swift \
+            -emit-module-path "$CHECK_DIR/DictateCore.swiftmodule" -o "$CHECK_DIR/libDictateCore.dylib"
+        swiftc -parse-as-library "$CHECK_DIR/Check.swift" -I "$CHECK_DIR" -L "$CHECK_DIR" -lDictateCore \
+            -Xlinker -rpath -Xlinker "$CHECK_DIR" -o "$CHECK_DIR/check"
+    else
+        swiftc -parse-as-library "$CHECK_DIR/Check.swift" -o "$CHECK_DIR/check"
+    fi
     "$CHECK_DIR/check"
 }
 
 case "${1:-all}" in
-    all) check_helper DebugTrail DebugTrail.swift; check_helper Pasteboard Paste.swift ;;
+    all) check_helper DebugTrail DebugTrail.swift; check_helper Pasteboard Paste.swift; check_helper Recorder Recorder.swift ;;
     DebugTrail) check_helper DebugTrail DebugTrail.swift ;;
     Pasteboard) check_helper Pasteboard Paste.swift ;;
-    *) echo "Usage: $0 [all|DebugTrail|Pasteboard]" >&2; exit 2 ;;
+    Recorder) check_helper Recorder Recorder.swift ;;
+    *) echo "Usage: $0 [all|DebugTrail|Pasteboard|Recorder]" >&2; exit 2 ;;
 esac
