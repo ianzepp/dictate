@@ -1,0 +1,16 @@
+[
+  {
+    "name": "usage",
+    "exit_code": 2,
+    "expected_exit_code": 2,
+    "stdout": "",
+    "stderr": "Usage: DictateSpeechSpike MODEL_DIRECTORY AUDIO.wav [AUDIO.wav ...]\n"
+  },
+  {
+    "name": "missing_model",
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "stdout": "",
+    "stderr": "Speech spike failed: Error Domain=NSCocoaErrorDomain Code=260 \"The file \u201cconfig.json\u201d couldn\u2019t be opened because there is no such file.\" UserInfo={NSFilePath=/nonexistent/dictate-spike-model/config.json, NSURL=file:///nonexistent/dictate-spike-model/config.json, NSUnderlyingError=0x74bac54600 {Error Domain=NSPOSIXErrorDomain Code=2 \"No such file or directory\"}}\n"
+  }
+]

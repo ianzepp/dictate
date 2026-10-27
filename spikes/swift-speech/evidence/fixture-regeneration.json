@@ -1,0 +1,14 @@
+[
+  {
+    "fixture": "short.wav",
+    "checked_in_sha256": "ccb0c38b4f39fc823d602667b405352c6e62a9937b4e5582fe709b495bb9e63c",
+    "regenerated_sha256": "ccb0c38b4f39fc823d602667b405352c6e62a9937b4e5582fe709b495bb9e63c",
+    "equal": true
+  },
+  {
+    "fixture": "long.wav",
+    "checked_in_sha256": "569c9ece2db82d141e9959f71db6f7071433b8d2ad9dc01119902bf5ae65be5e",
+    "regenerated_sha256": "569c9ece2db82d141e9959f71db6f7071433b8d2ad9dc01119902bf5ae65be5e",
+    "equal": true
+  }
+]

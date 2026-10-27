@@ -1,0 +1,122 @@
+{
+  "runner": "python-stdlib-baseline",
+  "endpoint": "http://127.0.0.1:8090/transcribe/raw",
+  "request_order": "sequential; one warmup then measured repetitions per fixture",
+  "fixtures": [
+    {
+      "fixture": "/Users/ianzepp/work/ianzepp/dictate/spikes/swift-speech/fixtures/short.wav",
+      "audio_duration_seconds": 7.76325,
+      "warmup": {
+        "http_status": 200,
+        "response": {
+          "raw_transcript": "Hi Morgan, please move the design review to Thursday at 10.30am Add Priya and Louise, and send the updated notes before launch.",
+          "replaced_transcript": "Hi Morgan, please move the design review to Thursday at 10.30am Add Priya and Louise, and send the updated notes before launch.",
+          "stt_seconds": 0.17,
+          "model": "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+        },
+        "wall_time_seconds": 0.178834
+      },
+      "measured_repetitions": [
+        {
+          "http_status": 200,
+          "response": {
+            "raw_transcript": "Hi Morgan, please move the design review to Thursday at 10.30am Add Priya and Louise, and send the updated notes before launch.",
+            "replaced_transcript": "Hi Morgan, please move the design review to Thursday at 10.30am Add Priya and Louise, and send the updated notes before launch.",
+            "stt_seconds": 0.22,
+            "model": "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+          },
+          "wall_time_seconds": 0.221789,
+          "repetition": 1
+        },
+        {
+          "http_status": 200,
+          "response": {
+            "raw_transcript": "Hi Morgan, please move the design review to Thursday at 10.30am Add Priya and Louise, and send the updated notes before launch.",
+            "replaced_transcript": "Hi Morgan, please move the design review to Thursday at 10.30am Add Priya and Louise, and send the updated notes before launch.",
+            "stt_seconds": 0.35,
+            "model": "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+          },
+          "wall_time_seconds": 0.357568,
+          "repetition": 2
+        },
+        {
+          "http_status": 200,
+          "response": {
+            "raw_transcript": "Hi Morgan, please move the design review to Thursday at 10.30am Add Priya and Louise, and send the updated notes before launch.",
+            "replaced_transcript": "Hi Morgan, please move the design review to Thursday at 10.30am Add Priya and Louise, and send the updated notes before launch.",
+            "stt_seconds": 0.28,
+            "model": "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+          },
+          "wall_time_seconds": 0.285011,
+          "repetition": 3
+        }
+      ],
+      "measured_wall_time": {
+        "count": 3,
+        "mean_seconds": 0.288123,
+        "median_seconds": 0.285011,
+        "min_seconds": 0.221789,
+        "max_seconds": 0.357568
+      },
+      "warmup_plus_repetitions_wall_time_seconds": 1.044862
+    },
+    {
+      "fixture": "/Users/ianzepp/work/ianzepp/dictate/spikes/swift-speech/fixtures/long.wav",
+      "audio_duration_seconds": 51.73275,
+      "warmup": {
+        "http_status": 200,
+        "response": {
+          "raw_transcript": "Good morning, Morgan. This is a quick planning note for the Riverside launch. Please reserve the small conference room for Thursday, November 12th. From 9.15 until 10, invite Priya Shah, Luis Ortega, and Devin Brooks. Then attach the latest checklist and budget summary. The new microphone stands arrive on Tuesday, but the blue cables may be delayed by one day. So keep the old set in the equipment case. For the opening slide, use the title, A Commer Way to Work, and add these three milestones. Review the demo, confirm the shipment, and send the customer guide. I will ask Jamie to check the speaker names and verify that each link opens. If the room is unavailable, book the library meeting space instead. Please do not change the launch date or remove the accessibility review. Send me a short update by 4 o'clock, and mark any missing owner clearly.",
+          "replaced_transcript": "Good morning, Morgan. This is a quick planning note for the Riverside launch. Please reserve the small conference room for Thursday, November 12th. From 9.15 until 10, invite Priya Shah, Luis Ortega, and Devin Brooks. Then attach the latest checklist and budget summary. The new microphone stands arrive on Tuesday, but the blue cables may be delayed by one day. So keep the old set in the equipment case. For the opening slide, use the title, A Commer Way to Work, and add these three milestones. Review the demo, confirm the shipment, and send the customer guide. I will ask Jamie to check the speaker names and verify that each link opens. If the room is unavailable, book the library meeting space instead. Please do not change the launch date or remove the accessibility review. Send me a short update by 4 o'clock, and mark any missing owner clearly.",
+          "stt_seconds": 0.78,
+          "model": "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+        },
+        "wall_time_seconds": 0.785165
+      },
+      "measured_repetitions": [
+        {
+          "http_status": 200,
+          "response": {
+            "raw_transcript": "Good morning, Morgan. This is a quick planning note for the Riverside launch. Please reserve the small conference room for Thursday, November 12th. From 9.15 until 10, invite Priya Shah, Luis Ortega, and Devin Brooks. Then attach the latest checklist and budget summary. The new microphone stands arrive on Tuesday, but the blue cables may be delayed by one day. So keep the old set in the equipment case. For the opening slide, use the title, A Commer Way to Work, and add these three milestones. Review the demo, confirm the shipment, and send the customer guide. I will ask Jamie to check the speaker names and verify that each link opens. If the room is unavailable, book the library meeting space instead. Please do not change the launch date or remove the accessibility review. Send me a short update by 4 o'clock, and mark any missing owner clearly.",
+            "replaced_transcript": "Good morning, Morgan. This is a quick planning note for the Riverside launch. Please reserve the small conference room for Thursday, November 12th. From 9.15 until 10, invite Priya Shah, Luis Ortega, and Devin Brooks. Then attach the latest checklist and budget summary. The new microphone stands arrive on Tuesday, but the blue cables may be delayed by one day. So keep the old set in the equipment case. For the opening slide, use the title, A Commer Way to Work, and add these three milestones. Review the demo, confirm the shipment, and send the customer guide. I will ask Jamie to check the speaker names and verify that each link opens. If the room is unavailable, book the library meeting space instead. Please do not change the launch date or remove the accessibility review. Send me a short update by 4 o'clock, and mark any missing owner clearly.",
+            "stt_seconds": 0.72,
+            "model": "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+          },
+          "wall_time_seconds": 0.727366,
+          "repetition": 1
+        },
+        {
+          "http_status": 200,
+          "response": {
+            "raw_transcript": "Good morning, Morgan. This is a quick planning note for the Riverside launch. Please reserve the small conference room for Thursday, November 12th. From 9.15 until 10, invite Priya Shah, Luis Ortega, and Devin Brooks. Then attach the latest checklist and budget summary. The new microphone stands arrive on Tuesday, but the blue cables may be delayed by one day. So keep the old set in the equipment case. For the opening slide, use the title, A Commer Way to Work, and add these three milestones. Review the demo, confirm the shipment, and send the customer guide. I will ask Jamie to check the speaker names and verify that each link opens. If the room is unavailable, book the library meeting space instead. Please do not change the launch date or remove the accessibility review. Send me a short update by 4 o'clock, and mark any missing owner clearly.",
+            "replaced_transcript": "Good morning, Morgan. This is a quick planning note for the Riverside launch. Please reserve the small conference room for Thursday, November 12th. From 9.15 until 10, invite Priya Shah, Luis Ortega, and Devin Brooks. Then attach the latest checklist and budget summary. The new microphone stands arrive on Tuesday, but the blue cables may be delayed by one day. So keep the old set in the equipment case. For the opening slide, use the title, A Commer Way to Work, and add these three milestones. Review the demo, confirm the shipment, and send the customer guide. I will ask Jamie to check the speaker names and verify that each link opens. If the room is unavailable, book the library meeting space instead. Please do not change the launch date or remove the accessibility review. Send me a short update by 4 o'clock, and mark any missing owner clearly.",
+            "stt_seconds": 0.77,
+            "model": "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+          },
+          "wall_time_seconds": 0.774449,
+          "repetition": 2
+        },
+        {
+          "http_status": 200,
+          "response": {
+            "raw_transcript": "Good morning, Morgan. This is a quick planning note for the Riverside launch. Please reserve the small conference room for Thursday, November 12th. From 9.15 until 10, invite Priya Shah, Luis Ortega, and Devin Brooks. Then attach the latest checklist and budget summary. The new microphone stands arrive on Tuesday, but the blue cables may be delayed by one day. So keep the old set in the equipment case. For the opening slide, use the title, A Commer Way to Work, and add these three milestones. Review the demo, confirm the shipment, and send the customer guide. I will ask Jamie to check the speaker names and verify that each link opens. If the room is unavailable, book the library meeting space instead. Please do not change the launch date or remove the accessibility review. Send me a short update by 4 o'clock, and mark any missing owner clearly.",
+            "replaced_transcript": "Good morning, Morgan. This is a quick planning note for the Riverside launch. Please reserve the small conference room for Thursday, November 12th. From 9.15 until 10, invite Priya Shah, Luis Ortega, and Devin Brooks. Then attach the latest checklist and budget summary. The new microphone stands arrive on Tuesday, but the blue cables may be delayed by one day. So keep the old set in the equipment case. For the opening slide, use the title, A Commer Way to Work, and add these three milestones. Review the demo, confirm the shipment, and send the customer guide. I will ask Jamie to check the speaker names and verify that each link opens. If the room is unavailable, book the library meeting space instead. Please do not change the launch date or remove the accessibility review. Send me a short update by 4 o'clock, and mark any missing owner clearly.",
+            "stt_seconds": 0.73,
+            "model": "/Users/ianzepp/ai/models/stt/mlx-community--whisper-large-v3-turbo-4bit"
+          },
+          "wall_time_seconds": 0.729667,
+          "repetition": 3
+        }
+      ],
+      "measured_wall_time": {
+        "count": 3,
+        "mean_seconds": 0.743827,
+        "median_seconds": 0.729667,
+        "min_seconds": 0.727366,
+        "max_seconds": 0.774449
+      },
+      "warmup_plus_repetitions_wall_time_seconds": 3.019812
+    }
+  ],
+  "total_wall_time_seconds": 4.065269
+}

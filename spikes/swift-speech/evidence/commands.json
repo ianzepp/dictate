@@ -1,0 +1,78 @@
+{
+  "resolve_initial": {
+    "log": "resolve.log",
+    "timings": [
+      "real 178.18",
+      "user 22.36",
+      "sys 9.37"
+    ],
+    "build_result": []
+  },
+  "resolve_after_rename": {
+    "log": "resolve-identity-fixed.log",
+    "timings": [
+      "real 110.71",
+      "user 19.00",
+      "sys 5.42"
+    ],
+    "build_result": []
+  },
+  "resolve_pinned": {
+    "log": "resolve-pinned.log",
+    "timings": [
+      "real 2.40",
+      "user 3.37",
+      "sys 1.20"
+    ],
+    "build_result": []
+  },
+  "metal_component": {
+    "log": "metal-toolchain.log",
+    "timings": [
+      "real 75.22",
+      "user 0.70",
+      "sys 0.26"
+    ],
+    "build_result": []
+  },
+  "dependency_compile_with_wrapper_error": {
+    "log": "build-metal-ready.log",
+    "timings": [
+      "real 121.71",
+      "user 583.50",
+      "sys 37.33"
+    ],
+    "build_result": [
+      "** BUILD FAILED **"
+    ]
+  },
+  "release_build": {
+    "log": "build-wrapper-fixed.log",
+    "timings": [
+      "real 15.23",
+      "user 17.15",
+      "sys 3.34"
+    ],
+    "build_result": [
+      "** BUILD SUCCEEDED **"
+    ]
+  },
+  "swift_inference": {
+    "log": "results/swift-time.txt",
+    "timings": [
+      "real 10.00",
+      "user 1.42",
+      "sys 2.52"
+    ],
+    "build_result": []
+  },
+  "python_reference": {
+    "log": "results/python-time.txt",
+    "timings": [
+      "real 4.14",
+      "user 0.05",
+      "sys 0.02"
+    ],
+    "build_result": []
+  }
+}

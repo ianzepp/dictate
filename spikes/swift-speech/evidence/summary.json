@@ -1,0 +1,108 @@
+{
+  "valid": true,
+  "measurement_scope": "medians use three measured runs and exclude warmup",
+  "distance_method": "casefold; replace punctuation with spaces; word Levenshtein edits / reference word count",
+  "limitations": [
+    "Synthetic speech does not establish real microphone parity.",
+    "Numbers and abbreviations are not normalized and may inflate edit distance.",
+    "Edit distance is directional evidence for these fixtures, not a general accuracy claim.",
+    "Python client wall time includes HTTP overhead; stt_seconds excludes it."
+  ],
+  "fixtures": [
+    {
+      "fixture": "long",
+      "python": {
+        "audio_seconds": 51.73275,
+        "measured_rows": 3,
+        "median_client_wall_seconds": 0.729667,
+        "median_stt_seconds": 0.73,
+        "normalized_word_edit_distance": {
+          "word_edits": [
+            7,
+            7,
+            7
+          ],
+          "normalized_distances": [
+            0.046358,
+            0.046358,
+            0.046358
+          ],
+          "median": 0.046358
+        }
+      },
+      "swift": {
+        "measured_rows": 3,
+        "median_wall_seconds": 0.898179,
+        "normalized_word_edit_distance": {
+          "word_edits": [
+            7,
+            7,
+            7
+          ],
+          "normalized_distances": [
+            0.046358,
+            0.046358,
+            0.046358
+          ],
+          "median": 0.046358
+        }
+      },
+      "exact_raw_text_equality": {
+        "python_measured_repetitions_equal": true,
+        "swift_measured_repetitions_equal": true,
+        "between_runtimes_measured_equal": false,
+        "between_runtimes_case_and_punctuation_ignored": true,
+        "python_warmup_matches_measured": true,
+        "swift_warmup_matches_measured": true
+      }
+    },
+    {
+      "fixture": "short",
+      "python": {
+        "audio_seconds": 7.76325,
+        "measured_rows": 3,
+        "median_client_wall_seconds": 0.285011,
+        "median_stt_seconds": 0.28,
+        "normalized_word_edit_distance": {
+          "word_edits": [
+            5,
+            5,
+            5
+          ],
+          "normalized_distances": [
+            0.2,
+            0.2,
+            0.2
+          ],
+          "median": 0.2
+        }
+      },
+      "swift": {
+        "measured_rows": 3,
+        "median_wall_seconds": 0.185081,
+        "normalized_word_edit_distance": {
+          "word_edits": [
+            5,
+            5,
+            5
+          ],
+          "normalized_distances": [
+            0.2,
+            0.2,
+            0.2
+          ],
+          "median": 0.2
+        }
+      },
+      "exact_raw_text_equality": {
+        "python_measured_repetitions_equal": true,
+        "swift_measured_repetitions_equal": true,
+        "between_runtimes_measured_equal": false,
+        "between_runtimes_case_and_punctuation_ignored": true,
+        "python_warmup_matches_measured": true,
+        "swift_warmup_matches_measured": true
+      }
+    }
+  ],
+  "errors": []
+}
