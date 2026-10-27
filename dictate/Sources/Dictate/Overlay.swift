@@ -13,6 +13,7 @@ final class Overlay {
     private let spinner = NSProgressIndicator()
     private let closeButton = NSButton()
     private var hideWork: DispatchWorkItem?
+    private var presentation: UInt = 0
 
     init() {
         panel = NSPanel(
@@ -62,7 +63,6 @@ final class Overlay {
         background.addSubview(row)
         NSLayoutConstraint.activate([
             row.leadingAnchor.constraint(equalTo: background.leadingAnchor),
-            row.widthAnchor.constraint(equalTo: background.widthAnchor),
             row.trailingAnchor.constraint(equalTo: background.trailingAnchor),
             row.centerYAnchor.constraint(equalTo: background.centerYAnchor),
             meter.widthAnchor.constraint(equalToConstant: 44),
@@ -107,6 +107,7 @@ final class Overlay {
 
     /// Hide at once, as after a cancel.
     func dismiss() {
+        presentation &+= 1
         hideWork?.cancel()
         hideWork = nil
         panel.orderOut(nil)
@@ -121,8 +122,14 @@ final class Overlay {
     }
 
     private func show(symbol: String, tint: NSColor, text: String) {
+        presentation &+= 1
         hideWork?.cancel()
         hideWork = nil
+        // A previous fade may already be running when a new recording starts.
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            panel.animator().alphaValue = 1
+        }
         icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: text)
         icon.contentTintColor = tint
         label.stringValue = text
@@ -131,20 +138,24 @@ final class Overlay {
         spinner.isHidden = true
         if !panel.isVisible {
             place()
-            panel.alphaValue = 1
             panel.orderFrontRegardless()
         }
     }
 
     private func hide(after delay: TimeInterval) {
+        let current = presentation
         let work = DispatchWorkItem { [weak self] in
-            guard let panel = self?.panel else { return }
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.2
-                panel.animator().alphaValue = 0
-            }, completionHandler: {
-                panel.orderOut(nil)
-            })
+            guard let self, self.presentation == current else { return }
+            let panel = self.panel
+            NSAnimationContext.runAnimationGroup(
+                { context in
+                    context.duration = 0.2
+                    panel.animator().alphaValue = 0
+                },
+                completionHandler: { [weak self] in
+                    guard self?.presentation == current else { return }
+                    panel.orderOut(nil)
+                })
         }
         hideWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
