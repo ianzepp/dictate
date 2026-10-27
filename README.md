@@ -194,9 +194,9 @@ xcodebuild test -scheme Dictate-Package -configuration Release -destination 'pla
   CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES
 ```
 
-The cleanup tests contain a frozen Python-derived corpus. The old implementation
-lives under `spikes/python-reference/` only as an experimental oracle, never as
-an app runtime. The original spike evidence remains under `spikes/swift-speech/`.
+The cleanup tests read a frozen reference corpus directly in Swift. The previous
+Python implementation and helper scripts exist only in Git history at `ad7e6c8`.
+The original experiment data and Swift-only spikes remain under `spikes/swift-speech/`.
 
 ## License
 

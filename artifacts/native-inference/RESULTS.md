@@ -21,8 +21,9 @@ The app keeps the existing bundle identifier and local signing certificate.
   preserved app/config backups and Release builds without coverage instrumentation.
 
 Normal build/install and app use require no Python. The previous implementation
-is archived under `spikes/python-reference/` only to reproduce experiments and
-regenerate the frozen parity corpus.
+and its benchmark/verification scripts were subsequently removed from the tree
+at the operator's request. They remain in Git history at `ad7e6c8`; the frozen
+corpus and this dated evidence remain as data.
 
 ## Evidence
 

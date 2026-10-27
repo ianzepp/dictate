@@ -11,7 +11,8 @@ first; this file adds repository-specific facts.
   and Task cancellation must prevent a cancelled request from pasting.
 - `DictateVerify`: the production engine without microphone/pasteboard, for
   fixture, download, reload and cancellation checks.
-- `spikes/python-reference`: historical oracle only. No production Python path.
+- Python source and helper scripts are retained only in Git history (`ad7e6c8`).
+  The checked-in golden data is read directly by Swift tests.
 
 Use Xcode builds: SwiftPM alone does not compile MLX's Metal resources. The
 build script stages `dist/Dictate.next.app`; the installer validates it, backs

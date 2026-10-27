@@ -1,5 +1,3 @@
-__pycache__/
-*.pyc
 *.profraw
 .DS_Store
 dictate/.build/
@@ -7,4 +5,3 @@ dictate/.swiftpm/
 dictate/DerivedData/
 dictate/dist/
 artifacts/native-inference/*.log
-.venv/

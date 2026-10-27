@@ -19,10 +19,10 @@ recording actual limits. No remote release or push is requested.
 
 ## Repo-aware baseline
 
-Base: `83993dd` on `codex/swift-speech-spike`, initially clean. App currently
-uploads WAVs to Python at localhost:8090; Python owns config validation, model
+Base: `83993dd` on `codex/swift-speech-spike`, initially clean. At that base the app
+uploaded WAVs to Python at localhost:8090; Python owned config validation, model
 preparation, replacement/chunk/prompt/guard logic and cleanup. Both model spikes
-passed against the existing quantized weights. The Swift app currently builds
+passed against the existing quantized weights. The Swift app then built
 with SwiftPM; native MLX needs Xcode's Metal resources bundled and signed.
 
 ## Stage graph and implementation work
@@ -87,8 +87,10 @@ be deferred; unresolved limits stay explicit.
   fallback and recovery. The app declares local networking support explicitly.
 - R1–R5 complete. Local version 0.2.0 installed; remote release deferred because
   it was not requested. No required implementation phase remains.
-- Python production sources moved to `spikes/python-reference/` for historical
-  reproduction; normal build/install has no Python dependency.
+- At `ad7e6c8`, Python sources were archived for historical reproduction. The
+  operator subsequently requested their removal, along with every Python
+  benchmark/verification script. Those sources now remain only in Git history;
+  normal build/install and all current checks use Swift and shell tooling.
 - Validation boundary: real microphone/hotkey/paste interaction needs an operator
   check; it was not inferred from fixture tests. Older NPZ/quantized Whisper
   variants unsupported by the SDK are documented, while the default checkpoint
